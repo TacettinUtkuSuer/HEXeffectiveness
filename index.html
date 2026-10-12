@@ -6,6 +6,15 @@
   <title>HEXeffectiveness — Plate-Fin Eşanjör Analizi</title>
   <meta name="description" content="Çapraz akışlı kanatçıklı plakalı eşanjör test verileri için ε-NTU, Wilson Plot ve basınç düşümü analizi (sunucusuz, GitHub Pages).">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231f4e79'/%3E%3Cpath d='M6 10h20M6 16h20M6 22h20' stroke='%23f0a030' stroke-width='3'/%3E%3Cpath d='M11 5v22M21 5v22' stroke='%2390c4f0' stroke-width='2'/%3E%3C/svg%3E">
+  <script>
+    // Tema: kayıtlı tercih yoksa işletim sistemi ayarı (sayfa yüklenmeden uygulanır, yanıp sönme olmaz)
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem('hexeffectiveness_theme'); } catch (e) {}
+      if (!t) t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.dataset.theme = t;
+    })();
+  </script>
   <link rel="stylesheet" href="css/style.css">
 
   <!-- Harici kütüphaneler (sabit sürümler) -->
@@ -37,6 +46,7 @@
     <button class="btn ghost" id="btnDemoDownload" title="Demo test verisini CSV olarak indir">⬇ Demo CSV İndir</button>
     <button class="btn ghost" id="btnProjSave" title="Projeyi JSON olarak kaydet">💾 Proje Kaydet</button>
     <label class="btn ghost" title="Kaydedilmiş proje JSON dosyasını yükle">📂 Proje Yükle<input type="file" id="fileProject" accept=".json,application/json" hidden></label>
+    <button class="btn ghost theme-btn" id="btnTheme" title="Koyu temaya geç (dark mode)">🌙</button>
     <button class="btn ghost danger" id="btnReset" title="Taslağı ve tüm verileri temizle">⟲ Sıfırla</button>
   </div>
 </header>
@@ -77,8 +87,26 @@
         </div>
       </div>
     </div>
+    <div class="card" id="manualCard">
+      <div class="row between">
+        <h2>Manuel Test Girişi (nokta nokta)</h2>
+        <div class="row gap">
+          <label class="chk"><input type="checkbox" data-bind="manualAutoRun"> Her eklemede analizi yeniden çalıştır</label>
+          <button class="btn ghost" id="btnManNew" title="Boş bir manuel veri seti başlat">＋ Boş Veri Seti</button>
+          <button class="btn ghost" id="btnManExport" title="Mevcut veri setini CSV olarak indir">⬇ CSV Dışa Aktar</button>
+        </div>
+      </div>
+      <p class="muted small">Test sırasında her kararlı rejim noktasını buradan girin. Değerler seçilen birimlerle yorumlanır (birimler yukarıdaki eşleme tablosuyla ortaktır). Nokta mevcut veri setine (CSV veya manuel) eklenir; boş bir veri setiyle başlamak için <b>＋ Boş Veri Seti</b>. <kbd>Enter</kbd> = Nokta Ekle. Giriş sıcaklıkları ekleme sonrası korunur.</p>
+      <div class="grid manual-grid" id="manualForm"></div>
+      <div class="row gap" style="margin-top:8px">
+        <button class="btn primary" id="btnManAdd">＋ Nokta Ekle</button>
+        <button class="btn ghost" id="btnManCancel" style="display:none">Düzenlemeyi İptal Et</button>
+      </div>
+      <div id="manualPreview"></div>
+    </div>
     <div class="card">
-      <h2>Ham Veri Önizleme <span class="muted small" id="previewCount"></span></h2>
+      <h2>Veri Tablosu <span class="muted small" id="previewCount"></span></h2>
+      <p class="muted small">✎ ile bir noktayı manuel giriş formunda düzenleyebilir, ✕ ile silebilirsiniz.</p>
       <div class="scroll-x"><table class="tbl small" id="previewTbl"></table></div>
     </div>
   </section>
@@ -150,23 +178,44 @@
           <button class="btn ghost danger" id="btnLibReset">Repo Varsayılanına Dön</button>
         </div>
       </div>
+      <div class="subcard">
+        <h3>Özellik Tablosundan Akışkan Ekle</h3>
+        <p class="muted small">Sıcaklığa karşı ölçülmüş/tablo özellik dosyası yükleyin (bir veya birden çok CSV). Beklenen başlıklar: <code>T [°C], ρ [kg/m³], cp [J/kg·K], μ [Pa·s], k [W/m·K]</code> — sütun sırası serbest; <code>K</code>/<code>°F</code>, <code>kJ/kg·K</code>, <code>mPa·s</code>/<code>cP</code> birimleri otomatik çevrilir. Akışkan adı dosya adından alınır (örn. <code>JP8.csv</code> → JP8).</p>
+        <div class="row gap">
+          <label>Model
+            <select id="tblMode">
+              <option value="table">Tablo + enterpolasyon (önerilen)</option>
+              <option value="equation">Polinom / ifadeye dönüştür</option>
+            </select>
+          </label>
+          <label class="btn primary" style="margin-top:18px">⬆ Özellik Tablosu Yükle<input type="file" id="fileTable" accept=".csv,.txt" multiple hidden></label>
+        </div>
+        <p class="muted small">Tablo modunda ρ, c<sub>p</sub>, k doğrusal; μ ise ln(μ) üzerinden enterpole edilir (viskozite sıcaklıkla üstel değiştiği için). Dönüştürme modunda c<sub>p</sub>, ρ, k → 3. derece polinom, μ → exp(3. derece polinom); tablo verisi yine saklanır ve model sonradan değiştirilebilir.</p>
+        <div id="tblImportOut"></div>
+      </div>
       <p class="muted small">Denklem formatı: katsayı listesi <code>a0; a1; a2; a3</code> → c(T) = a0 + a1·T + a2·T² + a3·T³, veya T değişkenli ifade, örn. <code>exp(-6.33 - 0.0326*T + 2.1e-4*T^2)</code>. Desteklenen fonksiyonlar: exp, ln, log10, sqrt, pow, abs, tanh. Birimler: c<sub>p</sub> [J/(kg·K)], ρ [kg/m³], μ [Pa·s], k [W/(m·K)].</p>
       <div class="scroll-x"><table class="tbl small" id="fluidTbl"></table></div>
       <h3>Akışkan Ekle / Düzenle</h3>
       <div class="grid form-grid">
         <label>Fluid_Name <input type="text" id="fName" placeholder="örn. Propylene Glycol 40%"></label>
         <label>T birimi <select id="fTunit"><option value="C">°C</option><option value="K">K</option></select></label>
+        <label>Model kaynağı
+          <select id="fSource"><option value="equation">Denklem (*_Eq)</option><option value="table" disabled>Tablo + enterpolasyon</option></select>
+          <small class="muted" id="fTableInfo">Bu akışkanın tablo verisi yok (yalnızca denklem).</small>
+        </label>
+        <div></div>
         <label>Cp_Eq <input type="text" id="fCp" placeholder="4213.9; -2.154; 0.03635; -1.48e-4"></label>
         <label>Density_Eq <input type="text" id="fRho"></label>
         <label>Viscosity_Eq <input type="text" id="fMu"></label>
         <label>k_Eq <input type="text" id="fK"></label>
       </div>
       <div class="row gap">
-        <button class="btn" id="btnFluidTest">Denklemleri Test Et</button>
+        <button class="btn ghost" id="btnFluidNew">Yeni (formu temizle)</button>
+        <button class="btn" id="btnFluidTest">Test Et / Grafiği Çiz</button>
         <button class="btn primary" id="btnFluidSave">Kaydet / Güncelle</button>
       </div>
       <div id="fluidTestOut" class="small"></div>
-      <div id="plotProps" class="plot small-plot"></div>
+      <div id="plotProps" class="plot tall"></div>
     </div>
     <div class="card">
       <h2>Katı Malzemeler (Kanatçık / Duvar)</h2>

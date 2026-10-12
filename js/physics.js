@@ -123,24 +123,143 @@
   /* ------------------------------------------------------------------
    * 2. Akışkan özellikleri
    * ------------------------------------------------------------------ */
+  const PROPS = [
+    { key: 'cp', eq: 'Cp_Eq', log: false },
+    { key: 'rho', eq: 'Density_Eq', log: false },
+    { key: 'mu', eq: 'Viscosity_Eq', log: true },
+    { key: 'k', eq: 'k_Eq', log: false }
+  ];
+
+  /**
+   * Tablo enterpolasyonu. Doğrusal (log=true ise ln(y) üzerinde doğrusal -> viskozite).
+   * Tablo dışında uç segmentlerle doğrusal ekstrapolasyon yapılır.
+   */
+  function tableInterpolator(Ts, ys, log) {
+    const pts = Ts.map((t, i) => [t, ys[i]]).filter(([t, y]) => isFinite(t) && isFinite(y) && (!log || y > 0)).sort((a, b) => a[0] - b[0]);
+    if (!pts.length) return null;
+    const X = pts.map((p) => p[0]), Y = pts.map((p) => (log ? Math.log(p[1]) : p[1]));
+    if (X.length === 1) { const v = pts[0][1]; return () => v; }
+    return (T) => {
+      let i = 0;
+      if (T <= X[0]) i = 0;
+      else if (T >= X[X.length - 1]) i = X.length - 2;
+      else { let lo = 0, hi = X.length - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (X[m] <= T) lo = m; else hi = m; } i = lo; }
+      const t = (T - X[i]) / (X[i + 1] - X[i]);
+      const y = Y[i] + t * (Y[i + 1] - Y[i]);
+      return log ? Math.exp(y) : y;
+    };
+  }
+
   const _fluidCache = new Map();
+  /**
+   * Akışkan modeli. f.source === 'table' ise f.table = {T:[], cp:[], rho:[], mu:[], k:[]} verisinden
+   * enterpolasyon; aksi halde *_Eq denklemleri. Tabloda eksik özellik varsa denkleme düşülür.
+   */
   function fluidModel(f) {
     if (!f) throw new Error('Akışkan tanımlı değil');
-    const key = JSON.stringify([f.name, f.T_unit, f.Cp_Eq, f.Density_Eq, f.Viscosity_Eq, f.k_Eq]);
+    const useTable = f.source === 'table' && f.table && Array.isArray(f.table.T);
+    const key = JSON.stringify([f.name, f.T_unit, f.source, useTable ? f.table : null, f.Cp_Eq, f.Density_Eq, f.Viscosity_Eq, f.k_Eq]);
     if (_fluidCache.has(key)) return _fluidCache.get(key);
     const toVar = (TK) => (String(f.T_unit || 'C').toUpperCase() === 'K' ? TK : TK - 273.15);
-    const cpF = parseEquation(f.Cp_Eq), rhoF = parseEquation(f.Density_Eq);
-    const muF = parseEquation(f.Viscosity_Eq), kF = parseEquation(f.k_Eq);
+    const fn = {};
+    for (const p of PROPS) {
+      fn[p.key] = (useTable && Array.isArray(f.table[p.key]) ? tableInterpolator(f.table.T, f.table[p.key], p.log) : null) || parseEquation(f[p.eq]);
+    }
     const m = {
       name: f.name,
-      cp: (TK) => { if (!cpF) throw new Error(f.name + ': Cp_Eq tanımsız'); return cpF(toVar(TK)); },
-      rho: (TK) => (rhoF ? rhoF(toVar(TK)) : NaN),
-      mu: (TK) => (muF ? muF(toVar(TK)) : NaN),
-      k: (TK) => (kF ? kF(toVar(TK)) : NaN)
+      source: useTable ? 'table' : 'equation',
+      range: useTable ? [Math.min(...f.table.T), Math.max(...f.table.T)] : (f.T_range || null),
+      cp: (TK) => { if (!fn.cp) throw new Error(f.name + ': c_p tanımsız'); return fn.cp(toVar(TK)); },
+      rho: (TK) => (fn.rho ? fn.rho(toVar(TK)) : NaN),
+      mu: (TK) => (fn.mu ? fn.mu(toVar(TK)) : NaN),
+      k: (TK) => (fn.k ? fn.k(toVar(TK)) : NaN)
     };
+    // Sıcaklık geçerlilik aralığında mı? (T_unit cinsinden aralık)
+    m.inRange = (TK) => !m.range || (toVar(TK) >= m.range[0] - 1e-9 && toVar(TK) <= m.range[1] + 1e-9);
     m.Pr = (TK) => m.cp(TK) * m.mu(TK) / m.k(TK);
     _fluidCache.set(key, m);
     return m;
+  }
+
+  /* ------------------------------------------------------------------
+   * 2b. Özellik tablosu içe aktarma ve polinom uydurma
+   * ------------------------------------------------------------------ */
+  // Başlıktan sütun türü ve birim çarpanı algıla
+  function classifyHeader(h) {
+    const s = String(h || '').trim();
+    const low = s.toLowerCase();
+    const unit = ((/[\[(]\s*([^\])]+?)\s*[\])]/.exec(s) || [])[1] || '').replace(/\s/g, '').toLowerCase();
+    if (/^(t|temp|temperature|sıcaklık|sicaklik)\b/i.test(s) || /^t\s*[\[(]/i.test(s)) {
+      return { prop: 'T', unit: /^k$/.test(unit) ? 'K' : /f/.test(unit) ? 'F' : 'C' };
+    }
+    if (/ρ|rho|dens|yoğun|yogun/.test(low)) return { prop: 'rho', mult: /g\/cm/.test(unit) ? 1000 : 1 };
+    if (/^c_?p|cp\b|özgül|specific/.test(low)) return { prop: 'cp', mult: /^kj/.test(unit) ? 1000 : 1 };
+    if (/μ|mu\b|^mu|visc|viskoz|^η/.test(low)) return { prop: 'mu', mult: /mpa|cp$|^cp|centipoise/.test(unit) ? 1e-3 : 1 };
+    if (/^k\b|^k\s*[\[(]|^λ|lambda|cond|iletken/.test(low)) return { prop: 'k', mult: /^mw/.test(unit) ? 1e-3 : 1 };
+    return null;
+  }
+
+  /**
+   * headers + rows (dizi veya nesne satırları) -> {T:[°C], cp:[], rho:[], mu:[], k:[]}
+   */
+  function parsePropertyTable(headers, rows) {
+    const cls = headers.map(classifyHeader);
+    const iT = cls.findIndex((c) => c && c.prop === 'T');
+    if (iT < 0) throw new Error('Sıcaklık sütunu bulunamadı (başlık "T [°C]" gibi olmalı)');
+    const tbl = { T: [] };
+    const used = {};
+    cls.forEach((c, i) => { if (c && c.prop !== 'T' && used[c.prop] === undefined) { used[c.prop] = i; tbl[c.prop] = []; } });
+    if (tbl.cp === undefined) throw new Error('c_p sütunu bulunamadı');
+    const toNum = (v) => { if (typeof v === 'number') return v; const x = Number(String(v == null ? '' : v).trim().replace(',', '.')); return String(v == null ? '' : v).trim() === '' ? NaN : x; };
+    for (const r of rows) {
+      const get = (i) => toNum(Array.isArray(r) ? r[i] : r[headers[i]]);
+      let T = get(iT);
+      if (!isFinite(T)) continue;
+      if (cls[iT].unit === 'K') T -= 273.15; else if (cls[iT].unit === 'F') T = (T - 32) * 5 / 9;
+      tbl.T.push(+T.toFixed(6));
+      for (const [p, i] of Object.entries(used)) { const v = get(i); tbl[p].push(isFinite(v) ? v * cls[i].mult : null); }
+    }
+    if (tbl.T.length < 2) throw new Error('Tabloda en az 2 geçerli sıcaklık satırı olmalı');
+    // Sıcaklığa göre sırala
+    const order = tbl.T.map((_, i) => i).sort((a, b) => tbl.T[a] - tbl.T[b]);
+    for (const k of Object.keys(tbl)) tbl[k] = order.map((i) => tbl[k][i]);
+    return tbl;
+  }
+
+  // En küçük kareler polinomu (ölçekli değişkenle, iyi koşullanma için)
+  function polyfit(xs, ys, deg) {
+    const n = xs.length;
+    deg = Math.min(deg, n - 1);
+    const sc = Math.max(1, ...xs.map(Math.abs));
+    const X = xs.map((x) => Array.from({ length: deg + 1 }, (_, j) => Math.pow(x / sc, j)));
+    const c = solveLinearLS(X, ys);
+    if (!c) return null;
+    return c.map((v, j) => v / Math.pow(sc, j));
+  }
+  const fmtCoef = (v) => Number(v.toPrecision(6)).toString();
+
+  /**
+   * Tabloyu denklemlere dönüştür: cp, ρ, k -> 3. derece polinom; μ -> exp(3. derece polinom).
+   * Dönüş: {Cp_Eq, Density_Eq, Viscosity_Eq, k_Eq, errors:{cp:%max,...}}
+   */
+  function fitTableToEquations(tbl) {
+    const out = { errors: {} };
+    for (const p of PROPS) {
+      const arr = tbl[p.key];
+      if (!Array.isArray(arr)) continue;
+      const xs = [], ys = [];
+      arr.forEach((y, i) => { if (y != null && isFinite(y) && (!p.log || y > 0)) { xs.push(tbl.T[i]); ys.push(p.log ? Math.log(y) : y); } });
+      if (xs.length < 2) continue;
+      const c = polyfit(xs, ys, 3);
+      if (!c) continue;
+      const eq = p.log
+        ? 'exp(' + c.map((v, j) => (j === 0 ? fmtCoef(v) : '(' + fmtCoef(v) + ')*T' + (j > 1 ? '^' + j : ''))).join(' + ') + ')'
+        : c.map(fmtCoef).join('; ');
+      out[p.eq] = eq;
+      const f = parseEquation(eq);
+      out.errors[p.key] = Math.max(...xs.map((x, i) => { const y = p.log ? Math.exp(ys[i]) : ys[i]; return Math.abs((f(x) - y) / y) * 100; }));
+    }
+    return out;
   }
 
   /* ------------------------------------------------------------------
@@ -635,7 +754,7 @@
   }
 
   const HEX = {
-    parseEquation, compileExpr, fluidModel, UNITS, toKelvin, fromKelvin, toKgPerS, toPa,
+    parseEquation, compileExpr, fluidModel, tableInterpolator, parsePropertyTable, fitTableToEquations, polyfit, UNITS, toKelvin, fromKelvin, toKgPerS, toPa,
     epsCrossflow, ntuFromEps, finEfficiency, surfaceEfficiency, sideResistance, hFromResistance,
     mean, stdev, cv, metrics, processPoint, fitWilson, modelUA, fitPressure, rate, analyze,
     generateDemo, DEMO_TRUTH, DEMO_GEOM
