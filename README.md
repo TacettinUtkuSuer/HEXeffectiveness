@@ -48,7 +48,7 @@ python -m http.server 8000
 | Dosya | Açıklama |
 |---|---|
 | `index.html` | Ana uygulama arayüzü (sekmeler, formlar, grafik alanları) |
-| `css/style.css` | Arayüz ve PDF rapor stilleri |
+| `css/style.css` | Arayüz (açık/koyu tema) ve PDF rapor stilleri |
 | `js/physics.js` | Fizik/hesap motoru: ifade ayrıştırıcı, özellikler, birimler, $\varepsilon$-NTU, kanatçık verimi, Wilson fit, $\Delta P$ fit, rating, demo veri üretici |
 | `js/app.js` | Arayüz katmanı: durum yönetimi, veri yükleme/eşleme, kütüphane, Plotly grafikleri, PDF, proje/taslak |
 | `materials_db.json` | Varsayılan akışkan ve katı malzeme kütüphanesi |
@@ -59,13 +59,15 @@ Kullanılan kütüphaneler (CDN, sabit sürüm): Plotly.js 2.35.2, PapaParse 5.4
 
 ## Uygulama Akışı (Sekmeler)
 
-1. **Veri & Eşleme** — CSV/TXT/Excel yükleme, sütunların fiziksel büyüklüklere bağlanması, her sütun için birim seçimi, ham veri önizleme.
+1. **Veri & Eşleme** — CSV/TXT/Excel yükleme, sütunların fiziksel büyüklüklere bağlanması, her sütun için birim seçimi, **manuel nokta nokta test girişi**, düzenlenebilir veri tablosu.
 2. **Akışkan & Geometri** — Her taraf için akışkan, ısı transfer alanı $A$, kanatçık parametreleri ($A_f/A$, $L_f$, $t_f$, malzeme), duvar direnci $R_w$ ve analiz ayarları.
-3. **Kütüphane** — Sıcaklığa bağlı akışkan özellik denklemleri ve katı malzemeler; CSV ile toplu yükleme; `materials_db.json` indirme.
+3. **Kütüphane** — Sıcaklığa bağlı akışkan özellikleri (denklem veya **ölçülmüş özellik tablosu**) ve katı malzemeler; CSV ile toplu yükleme; `materials_db.json` indirme.
 4. **Analiz** — Isı dengesi, $\varepsilon$, NTU, UA hesabı; Wilson fit; $\Delta P$ fit; grafikler ve nokta tablosu.
 5. **Performans Tahmini** — Yeni debi ve giriş sıcaklıklarında $\varepsilon$, $Q$, $T_{out}$, $\Delta P$ tahmini ve debi taraması.
 6. **Rapor** — PDF mühendislik raporu, proje kaydet/yükle.
 7. **Yardım / Dokümantasyon** — Bu README.
+
+**Açık / koyu tema (dark mode):** Üst çubuktaki 🌙 / ☀️ düğmesiyle değiştirilir. İlk açılışta işletim sisteminin tema tercihi kullanılır; seçiminiz tarayıcıda hatırlanır. Grafikler temaya göre yeniden çizilir; **PDF raporu her zaman açık temada** (baskıya uygun) üretilir.
 
 ---
 
@@ -172,6 +174,18 @@ Fit, $\ln \Delta P = \ln K_p + n_p \ln \dot m$ doğrusal regresyonu ile yapılı
 | `Effectiveness` | Ölçülen/raporlanan $\varepsilon$ | Çıkış sıcaklıkları yoksa gerekli |
 | `dp1`, `dp2` | Taraf basınç düşümleri | ΔP fit'i için |
 
+### Manuel Test Girişi (nokta nokta)
+
+Test sırasında veriyi dosya hazırlamadan, her kararlı rejim noktasında doğrudan girebilirsiniz (*Veri & Eşleme → Manuel Test Girişi*):
+
+1. **＋ Boş Veri Seti** ile yeni bir test başlatın (veya noktaları mevcut CSV veri setine ekleyin).
+2. ṁ₁, ṁ₂, T₁in, T₁out, T₂in, T₂out, ΔP₁, ΔP₂ (isteğe bağlı ε, etiket, not) değerlerini girin. Her alanın yanındaki birim seçicisi eşleme tablosuyla ortaktır.
+3. Değerler girildikçe **anlık kontrol** yapılır: $Q_1$, $Q_2$, **ısı dengesi hatası** (eşik aşılırsa uyarı), $\varepsilon$, NTU, UA. Daha önce bir fit yapıldıysa noktanın **mevcut modele göre sapması** da gösterilir — şüpheli ölçümü test düzeneğinde hemen tekrarlayabilirsiniz.
+4. **＋ Nokta Ekle** (veya <kbd>Enter</kbd>). Giriş sıcaklıkları sonraki nokta için korunur, diğer alanlar temizlenir.
+5. *Her eklemede analizi yeniden çalıştır* açıksa (≥ 3 nokta) Wilson fit'i, grafikler ve tahminler her noktada güncellenir.
+
+Veri tablosunda ✎ ile bir nokta forma alınıp düzeltilebilir, ✕ ile silinebilir (CSV'den gelen satırlar dahil). **⬇ CSV Dışa Aktar** veri setini dosyaya kaydeder; ayrıca her değişiklik otomatik taslağa yazıldığından sayfa kapansa da noktalar kaybolmaz.
+
 **Otomatik Eşle** düğmesi, başlık adlarından (ör. `m_dot1`, `T1_in`, `Su Debisi`, `Hava T_cikis`, `dP`) ve köşeli/normal parantez içindeki birimlerden (`[kg/h]`, `(kPa)`) tahmin yapar; sonucu her zaman kontrol edin.
 
 **Otomatik birim dönüştürücü** (iç hesaplar daima SI):
@@ -185,7 +199,31 @@ Fit, $\ln \Delta P = \ln K_p + n_p \ln \dot m$ doğrusal regresyonu ile yapılı
 
 ## Malzeme ve Akışkan Kütüphanesi
 
-Uygulama açılışta `./materials_db.json` dosyasını okur (okunamazsa gömülü asgari kütüphane — Su, Hava, Alüminyum — kullanılır).
+Uygulama açılışta `./materials_db.json` dosyasını okur (okunamazsa gömülü asgari kütüphane — Su, Hava, Alüminyum — kullanılır). Bir akışkanın özellikleri iki yoldan tanımlanabilir: **denklem** (`*_Eq` alanları) veya **ölçülmüş özellik tablosu** (`source: "table"`).
+
+### Özellik tablosundan akışkan ekleme
+
+Sıcaklığa karşı tablo halinde özellik verisi (ör. yakıt veya yağ veri sayfası) doğrudan yüklenebilir — *Kütüphane → Özellik Tablosundan Akışkan Ekle → ⬆ Özellik Tablosu Yükle* (birden çok dosya seçilebilir):
+
+```csv
+T [°C],ρ [kg/m³],cp [J/kg·K],μ [Pa·s],k [W/m·K]
+0,817.29,1872.54,0.002597353,0.1281
+10,809.15,1916.13,0.002014872,0.1263
+20,801.00,1959.56,0.001607927,0.1246
+```
+
+- Sütun sırası serbesttir; başlıklar adlarından tanınır (`T`/`Temp`/`Sıcaklık`, `ρ`/`rho`/`Density`, `cp`, `μ`/`mu`/`Viscosity`, `k`/`λ`/`Conductivity`). Yalnızca `T` ve `cp` zorunludur.
+- Birimler başlıktaki köşeli parantezden okunup SI'ya çevrilir: `K`/`°F` → °C, `kJ/kg·K` → J/(kg·K), `mPa·s`/`cP` → Pa·s, `g/cm³` → kg/m³, `mW/m·K` → W/(m·K).
+- Akışkan adı dosya adından alınır (`JP8.csv` → **JP8**); aynı isimli akışkan güncellenir. Ad sonradan formdan değiştirilebilir.
+
+**Model seçimi:**
+
+| Model | Yöntem | Ne zaman |
+|---|---|---|
+| **Tablo + enterpolasyon** (önerilen, varsayılan) | $\rho$, $c_p$, $k$: tablo noktaları arasında doğrusal; $\mu$: $\ln\mu$ üzerinde doğrusal, $\mu(T) = \exp\!\left[\ln\mu_i + \frac{T-T_i}{T_{i+1}-T_i}(\ln\mu_{i+1}-\ln\mu_i)\right]$ | Veriye en sadık; viskozitesi geniş aralıkta değişen akışkanlar (ör. PAO'da −54…90 °C arasında ~900 kat) |
+| **Polinom / ifadeye dönüştür** | En küçük kareler: $c_p, \rho, k$ → 3. derece polinom; $\mu$ → $\exp(a_0 + a_1T + a_2T^2 + a_3T^3)$ | Taşınabilir, kompakt denklem istendiğinde |
+
+Her iki modelde tablo verisi saklanır; uydurulan denklemler de `*_Eq` alanlarına yazılır, böylece model *Akışkan Ekle / Düzenle* formundaki **Model kaynağı** seçimiyle sonradan değiştirilebilir. Form, uydurmanın tabloya göre maksimum % hatasını ve dört özelliğin eğrisini (μ logaritmik eksende) tablo noktalarıyla birlikte gösterir. Tablo aralığı dışındaki sıcaklıklarda uç segmentlerle ekstrapolasyon yapılır ve analizde uyarı verilir.
 
 **Denklem formatı** (her özellik alanı için):
 
@@ -210,7 +248,7 @@ Aynı isimli akışkan varsa güncellenir. **CSV Şablonu** düğmesi mevcut kü
 
 **Repo kalıcılığı:** Arayüzden eklenen/düzenlenen akışkanlar önce tarayıcı taslağında saklanır. Kalıcı yapmak için **⬇ Kütüphaneyi İndir** ile güncel `materials_db.json` dosyasını indirip depodaki dosyanın yerine koyun ve commit edin. **Repo Varsayılanına Dön** düğmesi kütüphaneyi depodaki dosyaya sıfırlar.
 
-Varsayılan kütüphane: Water, Air, Ethylene Glycol 50%, Engine Oil (SAE 30); katılar: Aluminum 3003/6061/1100, Copper, Brass, Stainless Steel 304, Carbon Steel. Polinomlar tablo verilerine en küçük kareler ile uydurulmuştur (geçerlilik aralığı `T_range` alanındadır).
+Varsayılan kütüphane: Water, Air, Ethylene Glycol 50%, Engine Oil (SAE 30) (denklem) ve **JP8** (0…90 °C), **PAO** (−54…90 °C) (tablo); katılar: Aluminum 3003/6061/1100, Copper, Brass, Stainless Steel 304, Carbon Steel. Polinomlar tablo verilerine en küçük kareler ile uydurulmuştur (geçerlilik aralığı `T_range` alanındadır).
 
 ## Isı Dengesi Filtresi ve 1D / 2D Mod Tespiti
 

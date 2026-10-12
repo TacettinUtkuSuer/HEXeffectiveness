@@ -49,7 +49,8 @@
       settings: { hbThreshold: 5, excludeHB: true, epsSource: 'temps', cvThreshold: 2, nMin: 0.3, nMax: 0.8, assumedN: 0.6, npMin: 1.5, npMax: 2.0 },
       rating: { m1: 0.3, m2: 0.6, flowUnit1: 'kg/s', flowUnit2: 'kg/s', T1in: 80, T2in: 25, tempUnit: '°C', dpUnit: 'Pa' },
       meta: { project: 'Plate-Fin Eşanjör Performans Testi', unit: '', engineer: '', notes: '', includeTable: true },
-      autoRun: false
+      autoRun: false,
+      manualAutoRun: true
     };
   }
 
@@ -143,13 +144,18 @@
     }
   }
 
+  const tblInfo = (f) => (f.table && Array.isArray(f.table.T) ? `${f.table.T.length} nokta, ${fmt(Math.min(...f.table.T))}…${fmt(Math.max(...f.table.T))} °C` : '');
   function renderLibrary() {
     const ft = $('#fluidTbl');
-    ft.innerHTML = '<thead><tr><th>Fluid_Name</th><th>T</th><th>Cp_Eq</th><th>Density_Eq</th><th>Viscosity_Eq</th><th>k_Eq</th><th>c<sub>p</sub>(25 °C)</th><th></th></tr></thead><tbody>' +
+    ft.innerHTML = '<thead><tr><th>Fluid_Name</th><th>Model</th><th>T</th><th>Cp_Eq</th><th>Density_Eq</th><th>Viscosity_Eq</th><th>k_Eq</th><th>c<sub>p</sub>(25 °C)</th><th></th></tr></thead><tbody>' +
       LIB.fluids.map((f, i) => {
         let cp25 = '—';
         try { cp25 = fmt(H.fluidModel(f).cp(298.15), 5); } catch (e) { cp25 = '<span class="req">hata</span>'; }
-        return `<tr><td><b>${esc(f.name)}</b></td><td>${esc(f.T_unit || 'C')}</td><td><code>${esc(f.Cp_Eq)}</code></td><td><code>${esc(f.Density_Eq)}</code></td><td><code>${esc(f.Viscosity_Eq)}</code></td><td><code>${esc(f.k_Eq)}</code></td><td class="num">${cp25}</td>
+        const isTbl = f.source === 'table' && f.table;
+        const model = isTbl ? `<span class="badge tbl">Tablo</span><br><small class="muted">${esc(tblInfo(f))}</small>`
+          : `<span class="badge eq">Denklem</span>${f.table ? '<br><small class="muted">tablodan uydurma</small>' : ''}`;
+        const eqc = (v) => `<td class="${isTbl ? 'dim' : ''}"><code>${esc(v)}</code></td>`;
+        return `<tr><td><b>${esc(f.name)}</b></td><td>${model}</td><td>${esc(f.T_unit || 'C')}</td>${eqc(f.Cp_Eq)}${eqc(f.Density_Eq)}${eqc(f.Viscosity_Eq)}${eqc(f.k_Eq)}<td class="num">${cp25}</td>
         <td><button class="btn sm" data-fedit="${i}">Düzenle</button> <button class="btn sm danger" data-fdel="${i}">Sil</button></td></tr>`;
       }).join('') + '</tbody>';
     const st = $('#solidTbl');
@@ -172,14 +178,27 @@
     });
   }
 
+  // Formda düzenlenen akışkanın tablo verisi (varsa)
+  let FORM_TABLE = null;
+  function fillFluidForm(f) {
+    FORM_TABLE = f.table ? JSON.parse(JSON.stringify(f.table)) : null;
+    $('#fName').value = f.name || ''; $('#fTunit').value = f.T_unit || 'C';
+    $('#fCp').value = f.Cp_Eq || ''; $('#fRho').value = f.Density_Eq || ''; $('#fMu').value = f.Viscosity_Eq || ''; $('#fK').value = f.k_Eq || '';
+    $('#fSource').value = f.source === 'table' && FORM_TABLE ? 'table' : 'equation';
+    $('#fSource option[value=table]').disabled = !FORM_TABLE;
+    $('#fTableInfo').textContent = FORM_TABLE ? 'Tablo verisi: ' + tblInfo(f) : 'Bu akışkanın tablo verisi yok (yalnızca denklem).';
+  }
   function readFluidForm() {
     const f = {
       name: $('#fName').value.trim(), T_unit: $('#fTunit').value,
       Cp_Eq: $('#fCp').value.trim(), Density_Eq: $('#fRho').value.trim(),
-      Viscosity_Eq: $('#fMu').value.trim(), k_Eq: $('#fK').value.trim()
+      Viscosity_Eq: $('#fMu').value.trim(), k_Eq: $('#fK').value.trim(),
+      source: $('#fSource').value
     };
+    if (FORM_TABLE) { f.table = FORM_TABLE; f.T_unit = 'C'; f.T_range = [Math.min(...FORM_TABLE.T), Math.max(...FORM_TABLE.T)]; }
     if (!f.name) throw new Error('Fluid_Name boş olamaz');
-    if (!f.Cp_Eq) throw new Error('Cp_Eq zorunludur');
+    if (f.source === 'table' && !FORM_TABLE) throw new Error('Tablo modeli için önce özellik tablosu yükleyin');
+    if (f.source !== 'table' && !f.Cp_Eq) throw new Error('Cp_Eq zorunludur');
     for (const k of ['Cp_Eq', 'Density_Eq', 'Viscosity_Eq', 'k_Eq']) {
       try { const fn = H.parseEquation(f[k]); if (fn && !isFinite(fn(20))) throw new Error('T=20 için sonlu değil'); }
       catch (e) { throw new Error(k + ': ' + e.message); }
@@ -189,31 +208,89 @@
 
   function testFluid(f) {
     const m = H.fluidModel(f);
-    const Ts = (f.T_unit === 'K' ? [273.15, 293.15, 323.15, 353.15, 373.15] : [0, 20, 50, 80, 100]);
-    const toK = (t) => (f.T_unit === 'K' ? t : t + 273.15);
-    const rows = Ts.map((t) => `<tr><td>${t} ${f.T_unit === 'K' ? 'K' : '°C'}</td><td class="num">${fmt(m.cp(toK(t)), 5)}</td><td class="num">${fmt(m.rho(toK(t)), 5)}</td><td class="num">${fmt(m.mu(toK(t)), 4)}</td><td class="num">${fmt(m.k(toK(t)), 4)}</td><td class="num">${fmt(m.Pr(toK(t)), 3)}</td></tr>`).join('');
-    $('#fluidTestOut').innerHTML = `<table class="tbl small"><thead><tr><th>T</th><th>c<sub>p</sub> [J/kgK]</th><th>ρ [kg/m³]</th><th>μ [Pa·s]</th><th>k [W/mK]</th><th>Pr</th></tr></thead><tbody>${rows}</tbody></table>`;
-    const tt = []; const lo = f.T_unit === 'K' ? 253.15 : -20, hi = f.T_unit === 'K' ? 423.15 : 150;
-    for (let t = lo; t <= hi; t += (hi - lo) / 80) tt.push(t);
-    const tr = (y, name, ax) => ({ x: tt, y, name, yaxis: ax, mode: 'lines' });
-    Plotly.react('plotProps', [
-      tr(tt.map((t) => m.cp(toK(t))), 'c_p [J/kgK]', 'y'),
-      tr(tt.map((t) => m.rho(toK(t))), 'ρ [kg/m³]', 'y2')
-    ], {
-      title: { text: esc(f.name) + ' — özellik eğrileri', font: { size: 13 } }, margin: { t: 36, r: 60, l: 60, b: 40 },
-      xaxis: { title: 'T [' + (f.T_unit === 'K' ? 'K' : '°C') + ']' }, yaxis: { title: 'c_p' },
-      yaxis2: { title: 'ρ', overlaying: 'y', side: 'right' }, legend: { orientation: 'h', y: -0.25 }
-    }, { responsive: true, displaylogo: false });
+    const K = f.T_unit === 'K';
+    const toK = (t) => (K ? t : t + 273.15);
+    let lo, hi;
+    if (f.table && f.table.T) { lo = Math.min(...f.table.T); hi = Math.max(...f.table.T); }
+    else if (f.T_range) { lo = f.T_range[0]; hi = f.T_range[1]; }
+    else { lo = K ? 253.15 : -20; hi = K ? 423.15 : 150; }
+    const Ts = Array.from({ length: 6 }, (_, i) => +(lo + (hi - lo) * i / 5).toFixed(2));
+    const rows = Ts.map((t) => `<tr><td>${t} ${K ? 'K' : '°C'}</td><td class="num">${fmt(m.cp(toK(t)), 5)}</td><td class="num">${fmt(m.rho(toK(t)), 5)}</td><td class="num">${fmt(m.mu(toK(t)), 4)}</td><td class="num">${fmt(m.k(toK(t)), 4)}</td><td class="num">${fmt(m.Pr(toK(t)), 3)}</td></tr>`).join('');
+    let errTxt = '';
+    if (f.table) {
+      try {
+        const e = H.fitTableToEquations(f.table).errors;
+        errTxt = `<div class="muted small">Polinom/ifade uydurmasının tabloya göre maks. hatası: c<sub>p</sub> ${fx(e.cp, 3)} %, ρ ${fx(e.rho, 3)} %, μ ${fx(e.mu, 3)} %, k ${fx(e.k, 3)} %. Aktif model: <b>${m.source === 'table' ? 'Tablo + enterpolasyon' : 'Denklem'}</b></div>`;
+      } catch (e) { /* yok say */ }
+    }
+    $('#fluidTestOut').innerHTML = `<table class="tbl small"><thead><tr><th>T</th><th>c<sub>p</sub> [J/kgK]</th><th>ρ [kg/m³]</th><th>μ [Pa·s]</th><th>k [W/mK]</th><th>Pr</th></tr></thead><tbody>${rows}</tbody></table>${errTxt}`;
+    const span = hi - lo, a = lo - 0.1 * span, b = hi + 0.1 * span;
+    const tt = Array.from({ length: 121 }, (_, i) => a + (b - a) * i / 120);
+    const props = [['cp', 'c_p [J/kgK]', '', ''], ['rho', 'ρ [kg/m³]', '2', ''], ['mu', 'μ [Pa·s]', '3', 'log'], ['k', 'k [W/mK]', '4', '']];
+    const tr = [];
+    props.forEach(([p, name, ax], i) => {
+      tr.push({ x: tt, y: tt.map((t) => m[p](toK(t))), mode: 'lines', name: 'model', showlegend: i === 0, line: { color: PALETTE[0] }, xaxis: 'x' + ax, yaxis: 'y' + ax });
+      if (f.table && Array.isArray(f.table[p])) {
+        tr.push({ x: f.table.T, y: f.table[p], mode: 'markers', name: 'tablo', showlegend: i === 0, marker: { color: C1C, size: 6 }, xaxis: 'x' + ax, yaxis: 'y' + ax });
+      }
+    });
+    const tl = 'T [' + (K ? 'K' : '°C') + ']';
+    const lay = baseLayout({
+      title: { text: esc(f.name) + ' — özellik eğrileri', font: { size: 13 } }, margin: { t: 40, r: 20, l: 70, b: 50 },
+      grid: { rows: 2, columns: 2, pattern: 'independent', ygap: 0.35, xgap: 0.2 }, legend: { orientation: 'h', y: -0.18 }
+    });
+    props.forEach(([, name, ax, type]) => {
+      lay['xaxis' + ax] = Object.assign({}, lay.xaxis, { title: tl });
+      lay['yaxis' + ax] = Object.assign({}, lay.yaxis, { title: name, type: type || 'linear', exponentformat: 'e' });
+    });
+    Plotly.react('plotProps', tr, lay, PCFG);
+  }
+
+  // Tablo dosyasından (T, ρ, cp, μ, k) akışkan oluştur
+  function importPropertyTables(files) {
+    const mode = $('#tblMode').value;
+    let done = 0, last = null;
+    const msgs = [];
+    Array.from(files).forEach((file) => {
+      Papa.parse(file, {
+        header: false, skipEmptyLines: true,
+        complete: (res) => {
+          try {
+            const rows = res.data.filter((r) => r.some((c) => String(c).trim() !== ''));
+            const tbl = H.parsePropertyTable(rows[0], rows.slice(1));
+            const fit = H.fitTableToEquations(tbl);
+            const name = file.name.replace(/\.[^.]+$/, '').replace(/^[0-9a-f]{8}-/i, '').trim() || 'Yeni akışkan';
+            const f = { name, T_unit: 'C', source: mode, T_range: [tbl.T[0], tbl.T[tbl.T.length - 1]],
+              Cp_Eq: fit.Cp_Eq || '', Density_Eq: fit.Density_Eq || '', Viscosity_Eq: fit.Viscosity_Eq || '', k_Eq: fit.k_Eq || '', table: tbl };
+            const j = LIB.fluids.findIndex((x) => x.name === name);
+            if (j >= 0) LIB.fluids[j] = f; else LIB.fluids.push(f);
+            last = f;
+            const miss = ['rho', 'mu', 'k'].filter((p) => !tbl[p]);
+            msgs.push(`${name}: ${tbl.T.length} nokta${j >= 0 ? ' (güncellendi)' : ''}${miss.length ? ' · eksik: ' + miss.join(', ') : ''}`);
+          } catch (e) { msgs.push(file.name + ': ' + e.message); }
+          if (++done === files.length) {
+            renderLibrary(); syncBindings(); saveDraft();
+            if (last) { fillFluidForm(last); testFluid(last); }
+            $('#tblImportOut').innerHTML = msgs.map((m) => `<div class="msg ${/:\s\d+ nokta/.test(m) ? 'ok' : 'err'}">${esc(m)}</div>`).join('');
+            toast(msgs.join(' · '), 5000);
+            if (RESULT) runAnalysis(true);
+          }
+        }
+      });
+    });
   }
 
   function importFluidCsv(file) {
     Papa.parse(file, {
       header: true, skipEmptyLines: true,
       complete: (res) => {
+        // Başlıklar T/ρ/cp/μ/k ise bu bir özellik tablosudur -> tablo içe aktarmaya yönlendir
+        const hs = res.meta.fields || [];
+        if (!hs.some((h) => /fluid_name/i.test(h)) && hs.some((h) => /^t\s*[\[(]|^t$/i.test(h.trim()))) { importPropertyTables([file]); return; }
         let n = 0; const errs = [];
         res.data.forEach((row, i) => {
           const get = (k) => { const key = Object.keys(row).find((h) => h.trim().toLowerCase() === k.toLowerCase()); return key ? String(row[key]).trim() : ''; };
-          const f = { name: get('Fluid_Name'), T_unit: (get('T_Unit') || 'C').toUpperCase().replace('°', ''), Cp_Eq: get('Cp_Eq'), Density_Eq: get('Density_Eq'), Viscosity_Eq: get('Viscosity_Eq'), k_Eq: get('k_Eq') };
+          const f = { name: get('Fluid_Name'), T_unit: (get('T_Unit') || 'C').toUpperCase().replace('°', ''), Cp_Eq: get('Cp_Eq'), Density_Eq: get('Density_Eq'), Viscosity_Eq: get('Viscosity_Eq'), k_Eq: get('k_Eq'), source: 'equation' };
           if (!f.name || !f.Cp_Eq) { errs.push('Satır ' + (i + 2) + ': Fluid_Name/Cp_Eq eksik'); return; }
           try { ['Cp_Eq', 'Density_Eq', 'Viscosity_Eq', 'k_Eq'].forEach((k) => H.parseEquation(f[k])); }
           catch (e) { errs.push('Satır ' + (i + 2) + ': ' + e.message); return; }
@@ -318,40 +395,169 @@
     }).join('');
     const info = $('#dataInfo');
     if (!S.raw) {
-      info.innerHTML = 'Henüz veri yok. <b>Demo Veriyi Yükle</b> ile hızlıca deneyebilirsiniz.';
+      info.innerHTML = 'Henüz veri yok. Dosya yükleyin, aşağıdan <b>manuel nokta</b> ekleyin veya <b>Demo Veriyi Yükle</b> ile deneyin.';
       $('#previewTbl').innerHTML = ''; $('#previewCount').textContent = '';
       return;
     }
     info.innerHTML = `<b>${esc(S.raw.fileName)}</b> · ${S.raw.rows.length} satır · ${hs.length} sütun`;
-    $('#previewCount').textContent = '(' + Math.min(S.raw.rows.length, 200) + ' / ' + S.raw.rows.length + ' satır)';
-    $('#previewTbl').innerHTML = '<thead><tr><th>#</th>' + hs.map((h) => `<th>${esc(h)}</th>`).join('') + '</tr></thead><tbody>' +
-      S.raw.rows.slice(0, 200).map((r, i) => '<tr><td>' + (i + 1) + '</td>' + hs.map((h) => `<td>${esc(r[h])}</td>`).join('') + '</tr>').join('') + '</tbody>';
+    const LIM = 1000;
+    $('#previewCount').textContent = '(' + Math.min(S.raw.rows.length, LIM) + ' / ' + S.raw.rows.length + ' satır)';
+    $('#previewTbl').innerHTML = '<thead><tr><th>#</th><th></th>' + hs.map((h) => `<th>${esc(h)}</th>`).join('') + '</tr></thead><tbody>' +
+      S.raw.rows.slice(0, LIM).map((r, i) => `<tr class="${i === MAN_EDIT ? 'editing' : ''}"><td>${i + 1}</td><td><button class="btn sm" data-redit="${i}" title="Formda düzenle">✎</button> <button class="btn sm danger" data-rdel="${i}" title="Sil">✕</button></td>` +
+        hs.map((h) => `<td>${esc(r[h])}</td>`).join('') + '</tr>').join('') + '</tbody>';
+  }
+
+  // Nokta etiketi sütunu (Point, Test_ID, Nokta ...)
+  function labelHeader() {
+    if (!S.raw) return '';
+    const hs = S.raw.headers;
+    return hs.find((h) => /^(point|nokta|test[_ ]?(id|no)?|id|no|#)$/i.test(String(h).trim())) || hs.find((h) => /(^|[_\s])(id|no)$/i.test(String(h).trim())) || '';
+  }
+
+  // Eşleme birimlerindeki değerleri (get(key) -> sayı) SI test noktasına çevir
+  function siPoint(get, f1, f2) {
+    const T = (k) => { const x = get(k); return isFinite(x) ? H.toKelvin(x, S.map[k].unit) : NaN; };
+    const T1in = T('T1_in'), T2in = T('T2_in');
+    const rho1 = f1.rho(isFinite(T1in) ? T1in : 293.15), rho2 = f2.rho(isFinite(T2in) ? T2in : 293.15);
+    if ((S.map.m_dot1.unit === 'L/min' && !(rho1 > 0)) || (S.map.m_dot2.unit === 'L/min' && !(rho2 > 0))) throw new Error('L/min dönüşümü için akışkanın yoğunluğu tanımlı olmalı');
+    let eps = get('Effectiveness');
+    if (isFinite(eps) && (S.map.Effectiveness.unit === '%' || eps > 1.5)) eps /= 100;
+    const dp = (k) => { const x = get(k); return isFinite(x) ? H.toPa(x, S.map[k].unit) : NaN; };
+    return {
+      m1: H.toKgPerS(get('m_dot1'), S.map.m_dot1.unit, rho1),
+      m2: H.toKgPerS(get('m_dot2'), S.map.m_dot2.unit, rho2),
+      T1in, T1out: T('T1_out'), T2in, T2out: T('T2_out'),
+      eps, dp1: dp('dp1'), dp2: dp('dp2')
+    };
   }
 
   // Ham satırları SI noktalarına dönüştür
   function buildPoints() {
-    if (!S.raw) throw new Error('Önce test verisi yükleyin');
+    if (!S.raw) throw new Error('Önce test verisi yükleyin veya manuel nokta ekleyin');
     for (const v of VARS) if (v.req && !S.map[v.key].col) throw new Error('Zorunlu eşleme eksik: ' + v.label);
     const f1 = fluidOrThrow(S.fluid1), f2 = fluidOrThrow(S.fluid2);
-    const val = (row, key) => (S.map[key].col ? num(row[S.map[key].col]) : NaN);
-    return S.raw.rows.map((row, i) => {
-      const T = (k) => { const x = val(row, k); return isFinite(x) ? H.toKelvin(x, S.map[k].unit) : NaN; };
-      const T1in = T('T1_in'), T2in = T('T2_in');
-      const rho1 = f1.rho(isFinite(T1in) ? T1in : 293.15), rho2 = f2.rho(isFinite(T2in) ? T2in : 293.15);
-      if ((S.map.m_dot1.unit === 'L/min' && !(rho1 > 0)) || (S.map.m_dot2.unit === 'L/min' && !(rho2 > 0))) throw new Error('L/min dönüşümü için akışkanın Density_Eq tanımlı olmalı');
-      let eps = val(row, 'Effectiveness');
-      if (isFinite(eps) && (S.map.Effectiveness.unit === '%' || eps > 1.5)) eps /= 100;
-      const dp = (k) => { const x = val(row, k); return isFinite(x) ? H.toPa(x, S.map[k].unit) : NaN; };
-      return {
-        idx: i,
-        label: row[S.raw.headers.find((h) => /id|no|test|nokta|point/i.test(h)) || ''] || String(i + 1),
-        m1: H.toKgPerS(val(row, 'm_dot1'), S.map.m_dot1.unit, rho1),
-        m2: H.toKgPerS(val(row, 'm_dot2'), S.map.m_dot2.unit, rho2),
-        T1in, T1out: T('T1_out'), T2in, T2out: T('T2_out'),
-        eps, dp1: dp('dp1'), dp2: dp('dp2'),
-        manualExclude: S.excluded.includes(i)
-      };
+    const lh = labelHeader();
+    return S.raw.rows.map((row, i) => Object.assign(siPoint((key) => (S.map[key].col ? num(row[S.map[key].col]) : NaN), f1, f2), {
+      idx: i,
+      label: (lh && row[lh] !== undefined && row[lh] !== '' ? String(row[lh]) : String(i + 1)),
+      manualExclude: S.excluded.includes(i)
+    }));
+  }
+
+  /* ------------------------------------------------------------------
+   * Manuel test girişi (nokta nokta)
+   * ------------------------------------------------------------------ */
+  let MAN_EDIT = -1; // düzenlenen satır indeksi (-1: yeni nokta)
+  function renderManualForm() {
+    const box = $('#manualForm');
+    const cur = {};
+    $$('[data-man]', box).forEach((el) => { cur[el.dataset.man] = el.value; });
+    box.innerHTML = VARS.map((v) => {
+      const units = H.UNITS[v.group].map((u) => `<option ${u === S.map[v.key].unit ? 'selected' : ''}>${u}</option>`).join('');
+      return `<label>${v.label}${v.req ? ' <span class="req">*</span>' : ''}
+        <span class="inline"><input type="number" step="any" data-man="${v.key}" value="${esc(cur[v.key] || '')}"><select data-mapunit="${v.key}" title="Birim (eşleme tablosuyla ortak)">${units}</select></span></label>`;
+    }).join('') + `<label>Etiket / Nokta adı <input type="text" data-man="_label" value="${esc(cur._label || '')}" placeholder="otomatik"></label>
+      <label>Not <input type="text" data-man="_note" value="${esc(cur._note || '')}" placeholder="örn. fan kademesi 3"></label>`;
+    $('#btnManAdd').textContent = MAN_EDIT >= 0 ? '✔ Noktayı Güncelle (#' + (MAN_EDIT + 1) + ')' : '＋ Nokta Ekle';
+    $('#btnManCancel').style.display = MAN_EDIT >= 0 ? '' : 'none';
+    manualPreview();
+  }
+  const manVal = (k) => { const el = $(`[data-man="${k}"]`); return el ? num(el.value) : NaN; };
+  const manStr = (k) => { const el = $(`[data-man="${k}"]`); return el ? el.value.trim() : ''; };
+
+  // Girilen noktanın anlık ısı dengesi / ε / NTU kontrolü (ve varsa model sapması)
+  function manualPreview() {
+    const out = $('#manualPreview');
+    const anyVal = VARS.some((v) => isFinite(manVal(v.key)));
+    if (!anyVal) { out.innerHTML = '<div class="muted small">Değerleri girdikçe ısı dengesi, ε ve NTU burada anlık hesaplanır.</div>'; return; }
+    try {
+      const f1 = fluidOrThrow(S.fluid1), f2 = fluidOrThrow(S.fluid2);
+      const p = H.processPoint(siPoint(manVal, f1, f2), f1, f2, S.settings);
+      if (!p.valid) { out.innerHTML = `<div class="msg info">${esc(p.reason)}</div>`; return; }
+      const hb = p.hbErr, bad = isFinite(hb) && hb > S.settings.hbThreshold;
+      const k = (cls, key, v, u) => `<div class="kpi ${cls}"><div class="k">${key}</div><div class="v">${v}</div><div class="u">${u || ''}</div></div>`;
+      const cards = [
+        k('s1', 'Q₁', fmt(p.Q1, 5), 'W'), k('s2', 'Q₂', fmt(p.Q2, 5), 'W'),
+        k(bad ? 'bad' : 'g', 'Isı dengesi hatası', fx(hb, 2) + ' %', bad ? '⚠ eşik %' + S.settings.hbThreshold + ' aşıldı' : 'eşik %' + S.settings.hbThreshold),
+        k('', 'ε', fx(p.eps_exp, 4), 'C<sub>r</sub> = ' + fx(p.Cr, 3)), k('', 'NTU', fx(p.NTU, 4), 'UA = ' + fmt(p.UA, 4) + ' W/K')
+      ];
+      if (RESULT) {
+        const um = H.modelUA(RESULT.fit, RESULT.geom, p.m1, p.m2);
+        const em = H.epsCrossflow(um.UA / p.Cmin, p.Cr);
+        const d = (p.eps_exp - em) / em * 100;
+        cards.push(k(Math.abs(d) > 5 ? 'bad' : 'g', 'Mevcut modele göre', fx(d, 2) + ' %', 'ε<sub>model</sub> = ' + fx(em, 4)));
+      }
+      const rng = [];
+      if (!f1.inRange(p.T1m)) rng.push(S.fluid1);
+      if (!f2.inRange(p.T2m)) rng.push(S.fluid2);
+      out.innerHTML = `<div class="grid kpis">${cards.join('')}</div>` +
+        (bad ? '<div class="msg warn">⚠ Isı dengesi hatası yüksek — ölçümü (rejim, sensör, debi) kontrol edip tekrarlamanız önerilir. Nokta yine de eklenebilir; analizde filtre ayarına göre hariç tutulur.</div>' : '') +
+        (rng.length ? `<div class="msg warn">Ortalama sıcaklık özellik verisinin aralığı dışında: ${esc(rng.join(', '))} (ekstrapolasyon).</div>` : '');
+    } catch (e) { out.innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
+  }
+
+  function ensureManualDataset() {
+    if (!S.raw) {
+      S.raw = { fileName: 'manuel_test.csv', headers: ['Point'].concat(VARS.map((v) => v.key), ['Note']), rows: [] };
+      VARS.forEach((v) => { S.map[v.key].col = v.key; });
+      S.excluded = [];
+    }
+  }
+
+  function manualAdd() {
+    for (const v of VARS) if (v.req && !isFinite(manVal(v.key))) { toast('Zorunlu alan eksik: ' + v.label, 3500); return; }
+    if (!isFinite(manVal('T1_out')) && !isFinite(manVal('T2_out')) && !isFinite(manVal('Effectiveness'))) { toast('En az bir çıkış sıcaklığı veya ε girin', 3500); return; }
+    ensureManualDataset();
+    const R = S.raw;
+    const addHeader = (h) => { if (!R.headers.includes(h)) { R.headers.push(h); R.rows.forEach((r) => { if (r[h] === undefined) r[h] = ''; }); } };
+    // Değer girilen ama eşlenmemiş büyüklükler için sütun aç
+    VARS.forEach((v) => {
+      if (isFinite(manVal(v.key)) && !S.map[v.key].col) {
+        let h = v.key; while (R.headers.includes(h) && Object.values(S.map).some((m) => m.col === h)) h += '_';
+        addHeader(h); S.map[v.key].col = h;
+      }
     });
+    let lh = labelHeader();
+    if (!lh) { lh = 'Point'; R.headers.unshift(lh); R.rows.forEach((r, i) => { r[lh] = 'P' + String(i + 1).padStart(2, '0'); }); }
+    const note = manStr('_note');
+    if (note) addHeader('Note');
+    const row = MAN_EDIT >= 0 ? R.rows[MAN_EDIT] : Object.fromEntries(R.headers.map((h) => [h, '']));
+    VARS.forEach((v) => { if (S.map[v.key].col) { const x = manVal(v.key); row[S.map[v.key].col] = isFinite(x) ? x : ''; } });
+    row[lh] = manStr('_label') || (MAN_EDIT >= 0 ? row[lh] : 'P' + String(R.rows.length + 1).padStart(2, '0'));
+    if (R.headers.includes('Note')) row.Note = note;
+    const wasEdit = MAN_EDIT >= 0;
+    if (!wasEdit) R.rows.push(row);
+    MAN_EDIT = -1;
+    $$('[data-man]').forEach((el) => {
+      // Giriş sıcaklıkları genelde testte sabit kalır -> korunur; diğerleri temizlenir
+      if (!['T1_in', 'T2_in'].includes(el.dataset.man)) el.value = '';
+    });
+    renderData(); saveDraft();
+    if (S.manualAutoRun && R.rows.length >= 3) { runAnalysis(true); runRating(true); }
+    renderManualForm();
+    toast(wasEdit ? 'Nokta güncellendi' : 'Nokta eklendi (' + R.rows.length + ' nokta)');
+  }
+
+  function manualEdit(i) {
+    const row = S.raw.rows[i];
+    MAN_EDIT = i;
+    VARS.forEach((v) => { const el = $(`[data-man="${v.key}"]`); const x = S.map[v.key].col ? num(row[S.map[v.key].col]) : NaN; el.value = isFinite(x) ? x : ''; });
+    const lh = labelHeader();
+    $('[data-man="_label"]').value = lh ? row[lh] : '';
+    $('[data-man="_note"]').value = row.Note || '';
+    renderManualForm();
+    $('#manualCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function deleteRow(i) {
+    const lh = labelHeader();
+    if (!confirm('Nokta silinsin mi? (' + (lh ? S.raw.rows[i][lh] : '#' + (i + 1)) + ')')) return;
+    S.raw.rows.splice(i, 1);
+    S.excluded = S.excluded.filter((x) => x !== i).map((x) => (x > i ? x - 1 : x));
+    if (MAN_EDIT === i) MAN_EDIT = -1; else if (MAN_EDIT > i) MAN_EDIT--;
+    renderData(); saveDraft();
+    if (RESULT) { if (S.raw.rows.length >= 3) { runAnalysis(true); runRating(true); } else RESULT = null; }
+    renderManualForm();
   }
 
   /* ------------------------------------------------------------------
@@ -388,6 +594,12 @@
     if (R.nHB) msgs.push(`<div class="msg warn">⚠ ${R.nHB} noktada ısı dengesi hatası > %${S.settings.hbThreshold}${S.settings.excludeHB ? ' — bu noktalar fit dışında tutuldu.' : ' — bu noktalar fit’e dahil (filtre kapalı).'}</div>`);
     if (R.nInvalid) msgs.push(`<div class="msg err">${R.nInvalid} nokta geçersiz (eksik veri veya fiziksel olmayan ε). Tabloya bakınız.</div>`);
     if (F.mode !== '2D') msgs.push(`<div class="msg warn">1D modda sabit tutulan tarafın üssü varsayılan değerdir (n = ${S.settings.assumedN}). Bu taraftaki debi değiştirilerek yapılan tahminler varsayıma dayalıdır.</div>`);
+    try {
+      const f1 = fluidOrThrow(S.fluid1), f2 = fluidOrThrow(S.fluid2);
+      const v = R.pts.filter((p) => p.valid);
+      const o1 = v.filter((p) => !f1.inRange(p.T1m)).length, o2 = v.filter((p) => !f2.inRange(p.T2m)).length;
+      if (o1 || o2) msgs.push(`<div class="msg warn">Özellik verisi aralığı dışında ortalama sıcaklık: ${o1 ? esc(S.fluid1) + ' (' + o1 + ' nokta) ' : ''}${o2 ? esc(S.fluid2) + ' (' + o2 + ' nokta)' : ''} — özellikler ekstrapole edildi.</div>`);
+    } catch (e) { /* yok say */ }
     if (F.warning) msgs.push(`<div class="msg warn">${esc(F.warning)}</div>`);
     if (R.dpFit1 && R.dpFit1.clamped) msgs.push(`<div class="msg warn">ΔP₁ üssü sınıra çekildi (n<sub>p</sub> = ${fx(R.dpFit1.np, 3)}).</div>`);
     if (R.dpFit2 && R.dpFit2.clamped) msgs.push(`<div class="msg warn">ΔP₂ üssü sınıra çekildi (n<sub>p</sub> = ${fx(R.dpFit2.np, 3)}).</div>`);
@@ -410,6 +622,7 @@
 
     renderPointsTable();
     plotAll();
+    manualPreview();
   }
 
   function renderPointsTable() {
@@ -437,13 +650,43 @@
    * Grafikler (Plotly)
    * ------------------------------------------------------------------ */
   const PCFG = { responsive: true, displaylogo: false, toImageButtonOptions: { format: 'png', scale: 2 } };
-  const C1C = '#c0392b', C2C = '#2471a3', GRAY = '#7f8c8d';
-  const baseLayout = (extra) => deepMerge({
-    margin: { t: 30, r: 20, l: 60, b: 50 }, font: { family: 'Segoe UI, Arial', size: 12 },
-    paper_bgcolor: '#fff', plot_bgcolor: '#fff', legend: { orientation: 'h', y: -0.2 },
-    xaxis: { gridcolor: '#e5e9ee', zeroline: false }, yaxis: { gridcolor: '#e5e9ee', zeroline: false }
-  }, extra || {});
-  const PALETTE = ['#1f4e79', '#c0392b', '#1e8449', '#b9770e', '#7d3c98', '#117a65', '#a04000', '#2e86c1', '#922b21', '#5d6d7e'];
+  // Tema renkleri (dark mode). Plotly düzenleri bu değerlerden üretilir.
+  const THEMES = {
+    light: { paper: '#ffffff', plot: '#ffffff', font: '#1b2533', grid: '#e5e9ee', line: '#333333', annot: 'rgba(255,255,255,.85)', main: '#1f4e79', s1: '#c0392b', s2: '#2471a3', gray: '#7f8c8d' },
+    dark: { paper: '#18202a', plot: '#18202a', font: '#dbe3ec', grid: '#2c3846', line: '#c9d3de', annot: 'rgba(24,32,42,.88)', main: '#5da2e8', s1: '#ef6b5f', s2: '#4ea3e0', gray: '#8796a8' }
+  };
+  let TC = THEMES.light;
+  let C1C = TC.s1, C2C = TC.s2, GRAY = TC.gray;
+  let PALETTE = [];
+  function setPlotTheme(name) {
+    TC = THEMES[name] || THEMES.light;
+    C1C = TC.s1; C2C = TC.s2; GRAY = TC.gray;
+    PALETTE = [TC.main, C1C, '#2ecc71', '#e0a43a', '#a569bd', '#1abc9c', '#dc7633', '#5dade2', '#cd6155', '#99a3a4'];
+    if (name !== 'dark') PALETTE.splice(2, 8, '#1e8449', '#b9770e', '#7d3c98', '#117a65', '#a04000', '#2e86c1', '#922b21', '#5d6d7e');
+  }
+  setPlotTheme('light');
+  const axisTheme = (t) => ({ gridcolor: t.grid, zerolinecolor: t.grid, linecolor: t.grid, color: t.font });
+  function baseLayout(extra) {
+    const L = deepMerge({
+      margin: { t: 30, r: 20, l: 60, b: 50 }, font: { family: 'Segoe UI, Arial', size: 12, color: TC.font },
+      paper_bgcolor: TC.paper, plot_bgcolor: TC.plot, legend: { orientation: 'h', y: -0.2 },
+      xaxis: { zeroline: false }, yaxis: { zeroline: false }
+    }, extra || {});
+    // Tanımlı tüm eksenlere tema renklerini uygula (yalnızca kullanılan eksenler)
+    Object.keys(L).filter((k) => /^[xy]axis\d*$/.test(k)).forEach((k) => { L[k] = Object.assign(axisTheme(TC), L[k]); });
+    return L;
+  }
+  // PDF için: mevcut grafiğin düzenini açık temaya çevir
+  function lightLayout(layout) {
+    const t = THEMES.light, L = JSON.parse(JSON.stringify(layout || {}));
+    L.paper_bgcolor = t.paper; L.plot_bgcolor = t.plot;
+    L.font = Object.assign({}, L.font, { color: t.font });
+    Object.keys(L).filter((k) => /^[xy]axis\d*$/.test(k)).forEach((k) => Object.assign(L[k], axisTheme(t)));
+    if (L.scene) ['xaxis', 'yaxis', 'zaxis'].forEach((k) => { L.scene[k] = Object.assign({}, L.scene[k], axisTheme(t), { backgroundcolor: t.paper }); });
+    (L.annotations || []).forEach((a) => { if (a.bgcolor) a.bgcolor = t.annot; a.font = Object.assign({}, a.font, { color: t.font }); });
+    if (L.legend) L.legend.font = Object.assign({}, L.legend.font, { color: t.font });
+    return L;
+  }
 
   function meanInletTemps() {
     const u = RESULT.pts.filter((p) => p.included);
@@ -481,14 +724,14 @@
     const all = inc.concat(exc);
     const lo = Math.min(...all.map((p) => Math.min(p.eps_exp, p.eps_pred))) * 0.95, hi = Math.max(...all.map((p) => Math.max(p.eps_exp, p.eps_pred))) * 1.05;
     Plotly.react('plotParity', [
-      { x: [lo, hi], y: [lo, hi], mode: 'lines', name: 'y = x', line: { color: '#333' } },
+      { x: [lo, hi], y: [lo, hi], mode: 'lines', name: 'y = x', line: { color: TC.line } },
       { x: [lo, hi], y: [lo * 1.05, hi * 1.05], mode: 'lines', name: '±5 %', line: { color: GRAY, dash: 'dot' } },
       { x: [lo, hi], y: [lo * 0.95, hi * 0.95], mode: 'lines', showlegend: false, line: { color: GRAY, dash: 'dot' } },
-      { x: inc.map((p) => p.eps_exp), y: inc.map((p) => p.eps_pred), text: inc.map(lab), mode: 'markers', name: 'Fit noktaları', marker: { color: '#1f4e79', size: 8 } },
+      { x: inc.map((p) => p.eps_exp), y: inc.map((p) => p.eps_pred), text: inc.map(lab), mode: 'markers', name: 'Fit noktaları', marker: { color: TC.main, size: 8 } },
       { x: exc.map((p) => p.eps_exp), y: exc.map((p) => p.eps_pred), text: exc.map(lab), mode: 'markers', name: 'Hariç tutulan', marker: { color: C1C, size: 9, symbol: 'x' } }
     ], baseLayout({
       xaxis: { title: 'ε deneysel', range: [lo, hi] }, yaxis: { title: 'ε model', range: [lo, hi], scaleanchor: 'x' },
-      annotations: [{ xref: 'paper', yref: 'paper', x: 0.02, y: 0.98, xanchor: 'left', showarrow: false, align: 'left', bgcolor: 'rgba(255,255,255,.85)',
+      annotations: [{ xref: 'paper', yref: 'paper', x: 0.02, y: 0.98, xanchor: 'left', showarrow: false, align: 'left', bgcolor: TC.annot,
         text: `R² = ${fx(R.stats.eps.R2, 4)}<br>RMSE = ${fx(R.stats.eps.RMSE, 4)}<br>MAPE = ${fx(R.stats.eps.MAPE, 2)} %` }]
     }), PCFG);
 
@@ -507,7 +750,8 @@
           contours: { z: { show: true, usecolormap: true, project: { z: true } } } },
         { type: 'scatter3d', mode: 'markers', x: inc.map((p) => p.m1), y: inc.map((p) => p.m2), z: inc.map((p) => p.eps_exp), text: inc.map(lab), name: 'Ölçüm', marker: { size: 4, color: '#c0392b' } },
         { type: 'scatter3d', mode: 'markers', x: exc.map((p) => p.m1), y: exc.map((p) => p.m2), z: exc.map((p) => p.eps_exp), text: exc.map(lab), name: 'Hariç', marker: { size: 4, color: '#f0a030', symbol: 'x' } }
-      ], { margin: { t: 10, l: 0, r: 0, b: 0 }, scene: { xaxis: { title: 'ṁ₁ [kg/s]' }, yaxis: { title: 'ṁ₂ [kg/s]' }, zaxis: { title: 'ε' }, camera: { eye: { x: 1.6, y: -1.6, z: 0.9 } } }, legend: { x: 0, y: 1 } }, PCFG);
+      ], { margin: { t: 10, l: 0, r: 0, b: 0 }, paper_bgcolor: TC.paper, font: { color: TC.font, family: 'Segoe UI, Arial', size: 12 },
+        scene: { xaxis: Object.assign({ title: 'ṁ₁ [kg/s]' }, axisTheme(TC)), yaxis: Object.assign({ title: 'ṁ₂ [kg/s]' }, axisTheme(TC)), zaxis: Object.assign({ title: 'ε' }, axisTheme(TC)), camera: { eye: { x: 1.6, y: -1.6, z: 0.9 } } }, legend: { x: 0, y: 1 } }, PCFG);
     } else {
       const v1 = R.fit.mode === '1D-m1';
       const fixedM = H.mean(inc.map((p) => (v1 ? p.m2 : p.m1)));
@@ -515,7 +759,7 @@
       const rr = v1 ? m1r : m2r;
       const xs = lin(rr[0] * 0.8, rr[1] * 1.2, 80);
       Plotly.react('plotSurface', [
-        { x: xs, y: xs.map((m) => (v1 ? epsAt(m, fixedM) : epsAt(fixedM, m))), mode: 'lines', name: 'Model', line: { color: '#1f4e79', width: 3 } },
+        { x: xs, y: xs.map((m) => (v1 ? epsAt(m, fixedM) : epsAt(fixedM, m))), mode: 'lines', name: 'Model', line: { color: TC.main, width: 3 } },
         { x: inc.map((p) => (v1 ? p.m1 : p.m2)), y: inc.map((p) => p.eps_exp), text: inc.map(lab), mode: 'markers', name: 'Ölçüm', marker: { color: C1C, size: 9 } },
         { x: exc.map((p) => (v1 ? p.m1 : p.m2)), y: exc.map((p) => p.eps_exp), text: exc.map(lab), mode: 'markers', name: 'Hariç', marker: { color: '#f0a030', size: 9, symbol: 'x' } }
       ], baseLayout({ xaxis: { title: (v1 ? 'ṁ₁' : 'ṁ₂') + ' [kg/s]' }, yaxis: { title: 'ε' } }), PCFG);
@@ -552,7 +796,7 @@
     ], baseLayout({
       grid: { rows: 1, columns: 2, pattern: 'independent' },
       xaxis: { title: '1/(η<sub>o1</sub>A₁ṁ₁<sup>n₁</sup>)', exponentformat: 'e' }, yaxis: { title: '1/UA − R<sub>w</sub> − R₂ [K/W]', exponentformat: 'e' },
-      xaxis2: { title: '1/(η<sub>o2</sub>A₂ṁ₂<sup>n₂</sup>)', exponentformat: 'e', gridcolor: '#e5e9ee' }, yaxis2: { title: '1/UA − R<sub>w</sub> − R₁ [K/W]', exponentformat: 'e', gridcolor: '#e5e9ee' },
+      xaxis2: { title: '1/(η<sub>o2</sub>A₂ṁ₂<sup>n₂</sup>)', exponentformat: 'e' }, yaxis2: { title: '1/UA − R<sub>w</sub> − R₁ [K/W]', exponentformat: 'e' },
       margin: { l: 70, r: 20 }
     }), PCFG);
 
@@ -583,7 +827,7 @@
     });
     if (dpv.length) {
       const a = Math.min(...dpv.filter((v) => v > 0)) * 0.8, b = Math.max(...dpv) * 1.2;
-      pd.unshift({ x: [a, b], y: [a, b], mode: 'lines', name: 'y = x', line: { color: '#333' } },
+      pd.unshift({ x: [a, b], y: [a, b], mode: 'lines', name: 'y = x', line: { color: TC.line } },
         { x: [a, b], y: [a * 1.1, b * 1.1], mode: 'lines', name: '±10 %', line: { color: GRAY, dash: 'dot' } },
         { x: [a, b], y: [a * 0.9, b * 0.9], mode: 'lines', showlegend: false, line: { color: GRAY, dash: 'dot' } });
     }
@@ -629,10 +873,10 @@
       const xs = Array.from({ length: 60 }, (_, i) => Math.min(...arr) * 0.6 + (Math.max(...arr) * 1.3 - Math.min(...arr) * 0.6) * i / 59);
       const rs = xs.map((x) => H.rate({ m1: sv === 'm1' ? x : m1, m2: sv === 'm2' ? x : m2, T1in, T2in }, RESULT.fit, RESULT.geom, f1, f2, RESULT.dpFit1, RESULT.dpFit2));
       Plotly.react('plotSweep', [
-        { x: xs, y: rs.map((q) => q.eps), name: 'ε', line: { color: '#1f4e79', width: 3 } },
+        { x: xs, y: rs.map((q) => q.eps), name: 'ε', line: { color: TC.main, width: 3 } },
         { x: xs, y: rs.map((q) => q.Q / 1000), name: 'Q [kW]', yaxis: 'y2', line: { color: '#1e8449' } },
         { x: xs, y: rs.map((q) => dpc(sv === 'm1' ? q.dp1 : q.dp2)), name: 'ΔP' + (sv === 'm1' ? '₁' : '₂') + ' [' + du + ']', yaxis: 'y3', line: { color: sv === 'm1' ? C1C : C2C, dash: 'dash' } },
-        { x: [sv === 'm1' ? m1 : m2], y: [res.eps], mode: 'markers', name: 'Seçili nokta', marker: { size: 12, color: '#f0a030', line: { color: '#333', width: 1 } } }
+        { x: [sv === 'm1' ? m1 : m2], y: [res.eps], mode: 'markers', name: 'Seçili nokta', marker: { size: 12, color: '#f0a030', line: { color: TC.line, width: 1 } } }
       ], baseLayout({
         xaxis: { title: (sv === 'm1' ? 'ṁ₁' : 'ṁ₂') + ' [kg/s]', domain: [0, 0.82] }, yaxis: { title: 'ε' },
         yaxis2: { title: 'Q [kW]', overlaying: 'y', side: 'right', anchor: 'x', showgrid: false },
@@ -669,7 +913,7 @@
       for (const [id, cap] of figs) {
         const gd = document.getElementById(id);
         if (!gd || !gd.data || !gd.data.length) continue;
-        const url = await Plotly.toImage(gd, { format: 'png', width: 1000, height: id === 'plotSurface' ? 620 : 520, scale: 1.5 });
+        const url = await Plotly.toImage({ data: gd.data, layout: lightLayout(gd.layout) }, { format: 'png', width: 1000, height: id === 'plotSurface' ? 620 : 520, scale: 1.5 });
         imgs.push({ url, cap });
       }
       const R = RESULT, F = R.fit, g = R.geom, m = S.meta, stt = R.stats;
@@ -865,6 +1109,7 @@
   function renderAllUI() {
     renderLibrary();
     renderData();
+    renderManualForm();
     syncBindings();
   }
 
@@ -879,9 +1124,33 @@
     saveDraft();
     if (p.startsWith('rating.')) runRating(true);
     else if (RESULT && /^(geom|settings|fluid)/.test(p)) { runAnalysis(true); }
+    if (/^(geom|settings|fluid)/.test(p)) manualPreview();
+  }
+
+  /* ------------------------------------------------------------------
+   * Tema (açık / koyu)
+   * ------------------------------------------------------------------ */
+  const THEME_KEY = 'hexeffectiveness_theme';
+  function currentTheme() { return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'; }
+  function applyTheme(name, persist) {
+    document.documentElement.dataset.theme = name;
+    setPlotTheme(name);
+    const b = $('#btnTheme');
+    if (b) { b.textContent = name === 'dark' ? '☀️' : '🌙'; b.title = name === 'dark' ? 'Açık temaya geç' : 'Koyu temaya geç (dark mode)'; }
+    if (persist) { try { localStorage.setItem(THEME_KEY, name); } catch (e) { /* yok say */ } }
+    // Grafikleri yeni renklerle yeniden çiz
+    if (RESULT) { try { plotAll(); } catch (e) { console.warn(e); } runRating(true); }
+    if ($('#plotProps').data) { try { testFluid(readFluidForm()); } catch (e) { /* yok say */ } }
   }
 
   function wire() {
+    $('#btnTheme').addEventListener('click', () => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true));
+    if (window.matchMedia) {
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+        let saved = null; try { saved = localStorage.getItem(THEME_KEY); } catch (err) { /* yok say */ }
+        if (!saved) applyTheme(e.matches ? 'dark' : 'light', false);
+      });
+    }
     $('#tabs').addEventListener('click', (e) => { const b = e.target.closest('button[data-tab]'); if (b) switchTab(b.dataset.tab); });
     document.addEventListener('change', (e) => {
       const el = e.target;
@@ -891,7 +1160,7 @@
         const u = el.value && detectUnit(el.value, VARS.find((v) => v.key === k).group);
         if (u) { S.map[k].unit = u; renderData(); }
         saveDraft();
-      } else if (el.matches('[data-mapunit]')) { S.map[el.dataset.mapunit].unit = el.value; saveDraft(); }
+      } else if (el.matches('[data-mapunit]')) { S.map[el.dataset.mapunit].unit = el.value; renderData(); renderManualForm(); saveDraft(); }
       else if (el.matches('[data-incl]')) {
         const i = +el.dataset.incl;
         S.excluded = S.excluded.filter((x) => x !== i);
@@ -905,6 +1174,28 @@
     ['dragenter', 'dragover'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add('over'); }));
     ['dragleave', 'drop'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove('over'); }));
     dz.addEventListener('drop', (e) => { const f = e.dataTransfer.files[0]; if (f) loadDataFile(f); });
+    // Manuel giriş
+    $('#manualForm').addEventListener('input', manualPreview);
+    $('#manualForm').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); manualAdd(); } });
+    $('#btnManAdd').addEventListener('click', manualAdd);
+    $('#btnManCancel').addEventListener('click', () => { MAN_EDIT = -1; $$('[data-man]').forEach((el) => { el.value = ''; }); renderData(); renderManualForm(); });
+    $('#btnManNew').addEventListener('click', () => {
+      if (S.raw && S.raw.rows.length && !confirm('Mevcut veri seti (' + S.raw.rows.length + ' satır) kapatılıp boş bir manuel test başlatılsın mı? Önce CSV olarak dışa aktarmanız önerilir.')) return;
+      S.raw = null; RESULT = null; MAN_EDIT = -1;
+      S.map = defaultState().map;
+      ensureManualDataset(); renderData(); renderManualForm(); saveDraft();
+      $('#analysisMsg').innerHTML = ''; $('#fitSummary').innerHTML = '';
+      toast('Boş manuel test veri seti hazır');
+    });
+    $('#btnManExport').addEventListener('click', () => {
+      if (!S.raw || !S.raw.rows.length) { toast('Dışa aktarılacak nokta yok'); return; }
+      download(S.raw.fileName.replace(/\.[^.]+$/, '') + '_' + new Date().toISOString().slice(0, 10) + '.csv', Papa.unparse(S.raw.rows, { columns: S.raw.headers }), 'text/csv');
+    });
+    $('#previewTbl').addEventListener('click', (e) => {
+      const ed = e.target.closest('[data-redit]'), dl = e.target.closest('[data-rdel]');
+      if (ed) manualEdit(+ed.dataset.redit);
+      if (dl) deleteRow(+dl.dataset.rdel);
+    });
     $('#btnAutoMap').addEventListener('click', () => { autoMap(true); renderData(); saveDraft(); toast('Otomatik eşleme yapıldı — lütfen kontrol edin'); });
     $('#btnGoAnalyze').addEventListener('click', () => { switchTab('analysis'); runAnalysis(); });
     $('#btnRun').addEventListener('click', () => runAnalysis());
@@ -934,7 +1225,7 @@
       const ed = e.target.closest('[data-fedit]'), dl = e.target.closest('[data-fdel]');
       if (ed) {
         const f = LIB.fluids[+ed.dataset.fedit];
-        $('#fName').value = f.name; $('#fTunit').value = f.T_unit || 'C'; $('#fCp').value = f.Cp_Eq || ''; $('#fRho').value = f.Density_Eq || ''; $('#fMu').value = f.Viscosity_Eq || ''; $('#fK').value = f.k_Eq || '';
+        fillFluidForm(f);
         try { testFluid(f); } catch (err) { $('#fluidTestOut').innerHTML = `<div class="msg err">${esc(err.message)}</div>`; }
         $('#fName').scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
@@ -953,6 +1244,8 @@
         toast(f.name + (j >= 0 ? ' güncellendi' : ' eklendi') + ' — kalıcı yapmak için kütüphaneyi indirip repoya commit edin');
       } catch (e) { $('#fluidTestOut').innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
     });
+    $('#fileTable').addEventListener('change', (e) => { if (e.target.files.length) importPropertyTables(Array.from(e.target.files)); e.target.value = ''; });
+    $('#btnFluidNew').addEventListener('click', () => { fillFluidForm({ name: '', T_unit: 'C' }); $('#fluidTestOut').innerHTML = ''; Plotly.purge('plotProps'); });
     $('#fileFluidCsv').addEventListener('change', (e) => { if (e.target.files[0]) importFluidCsv(e.target.files[0]); e.target.value = ''; });
     $('#btnFluidCsvTemplate').addEventListener('click', () => download('fluids_template.csv',
       Papa.unparse(LIB.fluids.map((f) => ({ Fluid_Name: f.name, Cp_Eq: f.Cp_Eq, Density_Eq: f.Density_Eq, Viscosity_Eq: f.Viscosity_Eq, k_Eq: f.k_Eq, T_Unit: f.T_unit || 'C' }))), 'text/csv'));
@@ -985,6 +1278,7 @@
    * ------------------------------------------------------------------ */
   async function init() {
     wire();
+    applyTheme(currentTheme(), false);
     loadHelp();
     LIB_REPO = await loadRepoLibrary();
     LIB = JSON.parse(JSON.stringify(LIB_REPO));
