@@ -57,7 +57,8 @@
   <button data-tab="library">3 · Kütüphane</button>
   <button data-tab="analysis">4 · Analiz</button>
   <button data-tab="rating">5 · Performans Tahmini</button>
-  <button data-tab="report">6 · Rapor</button>
+  <button data-tab="map">6 · Performans Haritası</button>
+  <button data-tab="report">7 · Rapor</button>
   <button data-tab="help">❓ Yardım / Dokümantasyon</button>
 </nav>
 
@@ -103,6 +104,38 @@
         <button class="btn ghost" id="btnManCancel" style="display:none">Düzenlemeyi İptal Et</button>
       </div>
       <div id="manualPreview"></div>
+      <div class="subcard">
+        <div class="row between">
+          <h3>Önerilen Sonraki Test Noktaları (D-optimal)</h3>
+          <div class="row gap">
+            <label>Öneri sayısı <input type="number" min="1" max="12" value="5" id="sugK" style="width:70px"></label>
+            <button class="btn" id="btnSuggest">⚙ Öner</button>
+          </div>
+        </div>
+        <p class="muted small">Mevcut fit'e göre, parametre (C₁, n₁, C₂, n₂) belirsizliğini en çok azaltacak debi kombinasyonları seçilir. Aday aralık: Performans Haritası sekmesindeki debi aralığı (boşsa test aralığının ×0.8–×1.2'si).</p>
+        <div id="suggestOut"></div>
+      </div>
+    </div>
+    <div class="card" id="steadyCard">
+      <h2>Zaman Serisinden Kararlı Rejim Tespiti</h2>
+      <p class="muted small">Veri kaydedici (data logger) dosyası yükleyin (CSV/Excel; bir zaman sütunu + sinyaller). Kayan pencerede her seçili sinyalin standart sapması ve eğimi tolerans içindeyse rejim kararlı sayılır; kararlı bölgelerin ortalamaları test noktası olarak eklenir.</p>
+      <div class="grid manual-grid">
+        <label class="btn ghost" style="margin-top:18px">⬆ Zaman Serisi Yükle<input type="file" id="fileSeries" accept=".csv,.txt,.xlsx,.xls" hidden></label>
+        <label>Zaman sütunu <select id="ssTime"></select></label>
+        <label>Örnekleme aralığı (zaman sütunu yoksa) [s] <input type="number" step="any" min="0" data-bind="steady.dt"></label>
+        <label>Pencere [s] <input type="number" step="any" min="1" data-bind="steady.window"></label>
+        <label>Min. kararlı süre [s] <input type="number" step="any" min="1" data-bind="steady.minDur"></label>
+        <label>Sıcaklık toleransı [K] <input type="number" step="any" min="0" data-bind="steady.tolT"></label>
+        <label>Diğer sinyaller toleransı [%] <input type="number" step="any" min="0" data-bind="steady.tolRel"></label>
+        <label>Kenar kırpma (her iki uç) [%] <input type="number" step="any" min="0" max="40" data-bind="steady.trim"></label>
+      </div>
+      <div id="ssSignals" class="small"></div>
+      <div class="row gap" style="margin-top:8px">
+        <button class="btn primary" id="btnSteady">🔍 Kararlı Bölgeleri Bul</button>
+        <button class="btn" id="btnSteadyAdd" disabled>＋ Noktaları Veri Setine Ekle</button>
+      </div>
+      <div id="ssOut"></div>
+      <div id="plotSteady" class="plot" style="display:none"></div>
     </div>
     <div class="card">
       <h2>Veri Tablosu <span class="muted small" id="previewCount"></span></h2>
@@ -126,6 +159,12 @@
           <label>Kanatçık malzemesi <select data-bind="geom.side1.material" data-list="solids"></select></label>
           <div class="muted small">k<sub>m</sub> = <span data-kshow="side1"></span> W/(m·K)</div>
         </fieldset>
+        <fieldset class="fins re-only">
+          <legend class="small muted">Re / Fanning modeli geometrisi</legend>
+          <label>Hidrolik çap D<sub>h1</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side1.Dh" data-scale="1000"></label>
+          <label>Serbest akış (min. kesit) alanı A<sub>c1</sub> [cm²] <input type="number" step="any" min="0" data-bind="geom.side1.Ac" data-scale="10000"></label>
+          <label>Akış yolu uzunluğu L<sub>1</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side1.Lflow" data-scale="1000"></label>
+        </fieldset>
       </div>
       <div class="card side2">
         <h2>Taraf 2 (Akışkan 2)</h2>
@@ -139,9 +178,22 @@
           <label>Kanatçık malzemesi <select data-bind="geom.side2.material" data-list="solids"></select></label>
           <div class="muted small">k<sub>m</sub> = <span data-kshow="side2"></span> W/(m·K)</div>
         </fieldset>
+        <fieldset class="fins re-only">
+          <legend class="small muted">Re / Fanning modeli geometrisi</legend>
+          <label>Hidrolik çap D<sub>h2</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side2.Dh" data-scale="1000"></label>
+          <label>Serbest akış (min. kesit) alanı A<sub>c2</sub> [cm²] <input type="number" step="any" min="0" data-bind="geom.side2.Ac" data-scale="10000"></label>
+          <label>Akış yolu uzunluğu L<sub>2</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side2.Lflow" data-scale="1000"></label>
+        </fieldset>
       </div>
       <div class="card">
         <h2>Duvar &amp; Analiz Ayarları</h2>
+        <label>Isıl / hidrolik model
+          <select data-bind="settings.thermalModel">
+            <option value="mass">Kütle debisi: h = C·ṁ<sup>n</sup>, ΔP = K<sub>p</sub>·ṁ<sup>n<sub>p</sub></sup></option>
+            <option value="reynolds">Boyutsuz: Nu = C·Re<sup>n</sup>·Pr<sup>1/3</sup>, f = K<sub>f</sub>·Re<sup>−b</sup> (sıcaklık/akışkan duyarlı)</option>
+          </select>
+          <small class="muted">Viskozitesi sıcaklıkla çok değişen akışkanlarda (yağ, yakıt, glikol) ve farklı giriş sıcaklıklarına tahmin için boyutsuz model önerilir; D<sub>h</sub>, A<sub>c</sub>, L gerekir.</small>
+        </label>
         <label>Duvar ısıl direnci R<sub>w</sub> [K/W] <input type="number" step="any" min="0" data-bind="geom.Rw"></label>
         <label>Isı dengesi eşiği [%] <input type="number" step="any" min="0" data-bind="settings.hbThreshold"></label>
         <label class="chk"><input type="checkbox" data-bind="settings.excludeHB"> Eşiği aşan noktaları fit dışında tut</label>
@@ -161,6 +213,16 @@
           <label>n<sub>p,min</sub> <input type="number" step="0.01" data-bind="settings.npMin"></label>
           <label>n<sub>p,max</sub> <input type="number" step="0.01" data-bind="settings.npMax"></label>
         </div>
+        <fieldset class="fins">
+          <legend class="small muted">Ölçüm belirsizliği (sensör doğruluğu, %95)</legend>
+          <label class="chk"><input type="checkbox" data-bind="settings.uncOn"> Nokta bazında belirsizlik yayılımı</label>
+          <div class="row gap">
+            <label>U<sub>T</sub> [K] <input type="number" step="any" min="0" data-bind="settings.uT"></label>
+            <label>U<sub>ṁ</sub> [%] <input type="number" step="any" min="0" data-bind="settings.uM"></label>
+            <label>U<sub>ΔP</sub> [%] <input type="number" step="any" min="0" data-bind="settings.uDP"></label>
+          </div>
+          <label>Bootstrap örnek sayısı <input type="number" step="10" min="20" max="1000" data-bind="settings.nBoot"></label>
+        </fieldset>
         <p class="muted small">Alan değerleri bilinmiyorsa A = 1 m² ve kanatçık verimi kapalı bırakılabilir; bu durumda C katsayıları doğrudan (hA) korelasyonu olarak yorumlanır.</p>
       </div>
     </div>
@@ -233,8 +295,12 @@
     <div class="card">
       <div class="row between">
         <h2>Analiz</h2>
-        <button class="btn primary" id="btnRun">▶ Analizi Çalıştır</button>
+        <div class="row gap">
+          <button class="btn" id="btnBoot" title="Fit parametreleri ve tahminler için %95 güven aralığı (yeniden örnekleme)">Σ Güven Aralığı (Bootstrap)</button>
+          <button class="btn primary" id="btnRun">▶ Analizi Çalıştır</button>
+        </div>
       </div>
+      <div id="bootStatus"></div>
       <div id="analysisMsg"></div>
       <div id="fitSummary" class="grid kpis"></div>
     </div>
@@ -285,7 +351,62 @@
     </div>
   </section>
 
-  <!-- ============================ 6. RAPOR ============================ -->
+  <!-- ============================ 6. HARİTA ============================ -->
+  <section class="tab-panel" id="tab-map">
+    <div class="grid two">
+      <div class="card">
+        <div class="row between">
+          <h2>Performans Haritası (ε, Q, ΔP)</h2>
+          <button class="btn ghost" id="btnMapSmart" title="Test verisine göre akıllı aralığı doldur">✨ Akıllı Aralık</button>
+        </div>
+        <p class="muted small">Boş bırakılan alanlar otomatik doldurulur: debi aralığı test aralığının ×0.8–×1.2'si (oran > 4 ise logaritmik), sıcaklıklar test ortalaması. Birden çok giriş sıcaklığı için virgülle ayırın (örn. <code>60, 80, 100</code>) — her kombinasyon ayrı bir harita seviyesidir.</p>
+        <div class="grid form-grid">
+          <label>ṁ₁ min <input type="text" data-bind="pmap.m1min" placeholder="otomatik"></label>
+          <label>ṁ₁ max <input type="text" data-bind="pmap.m1max" placeholder="otomatik"></label>
+          <label>ṁ₁ adım sayısı <input type="number" min="1" max="200" data-bind="pmap.m1n"></label>
+          <label>ṁ₁ birimi <select data-bind="pmap.flowUnit1" data-units="flow"></select></label>
+          <label>ṁ₂ min <input type="text" data-bind="pmap.m2min" placeholder="otomatik"></label>
+          <label>ṁ₂ max <input type="text" data-bind="pmap.m2max" placeholder="otomatik"></label>
+          <label>ṁ₂ adım sayısı <input type="number" min="1" max="200" data-bind="pmap.m2n"></label>
+          <label>ṁ₂ birimi <select data-bind="pmap.flowUnit2" data-units="flow"></select></label>
+          <label>T₁,giriş seviyeleri <input type="text" data-bind="pmap.T1list" placeholder="otomatik (test ortalaması)"></label>
+          <label>T₂,giriş seviyeleri <input type="text" data-bind="pmap.T2list" placeholder="otomatik (test ortalaması)"></label>
+          <label>Sıcaklık birimi <select data-bind="pmap.tempUnit" data-units="temp"></select></label>
+          <label>Aralık dağılımı
+            <select data-bind="pmap.spacing"><option value="auto">Otomatik</option><option value="lin">Doğrusal</option><option value="log">Logaritmik</option></select>
+          </label>
+          <label>ΔP birimi (dışa aktarma/grafik) <select data-bind="pmap.dpUnit" data-units="dp"></select></label>
+        </div>
+        <button class="btn primary" id="btnMap">▦ Haritayı Oluştur</button>
+        <div id="mapMsg"></div>
+      </div>
+      <div class="card">
+        <h2>Dışa Aktar</h2>
+        <p class="muted small">Tüm seviyeler dahil. Debiler seçilen birimde, sıcaklıklar seçilen birimde, ΔP seçilen birimde; ekstrapolasyon bayrağı = test edilen bölgenin (dışbükey zarf) dışı.</p>
+        <div class="grid form-grid">
+          <button class="btn" id="btnMapCsvLong">⬇ Uzun CSV (tüm büyüklükler)</button>
+          <button class="btn" id="btnMapXlsx">⬇ Excel (.xlsx, sayfa başına matris)</button>
+          <button class="btn" id="btnMapCsvMatrix">⬇ Matris CSV (seçili büyüklük &amp; seviye)</button>
+          <button class="btn" id="btnMapJson">⬇ JSON (ızgara + model)</button>
+        </div>
+        <div class="row gap">
+          <label>Büyüklük
+            <select data-bind="pmap.qty" id="mapQty">
+              <option value="eps">ε — etkinlik</option><option value="Q">Q — ısı yükü [kW]</option>
+              <option value="dp1">ΔP₁</option><option value="dp2">ΔP₂</option>
+              <option value="T1out">T₁,çıkış</option><option value="T2out">T₂,çıkış</option>
+              <option value="UA">UA [W/K]</option><option value="U_eps">U(ε) %95 (bootstrap)</option>
+            </select>
+          </label>
+          <label>Seviye <select id="mapLevel"></select></label>
+        </div>
+        <div id="mapInfo" class="small muted"></div>
+      </div>
+    </div>
+    <div class="card"><h3 id="mapTitle">Harita</h3><div id="plotMap" class="plot tall"></div></div>
+  </section>
+
+  <!-- ============================ 7. RAPOR ============================ -->
   <section class="tab-panel" id="tab-report">
     <div class="grid two">
       <div class="card">

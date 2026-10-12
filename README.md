@@ -15,12 +15,16 @@
 5. [Veri Girişi, Sütun Eşleme ve Birim Dönüşümü](#veri-girişi-sütun-eşleme-ve-birim-dönüşümü)
 6. [Malzeme ve Akışkan Kütüphanesi](#malzeme-ve-akışkan-kütüphanesi)
 7. [Isı Dengesi Filtresi ve 1D / 2D Mod Tespiti](#isı-dengesi-filtresi-ve-1d--2d-mod-tespiti)
-8. [Performans Tahmin Motoru (Rating)](#performans-tahmin-motoru-rating)
-9. [Görselleştirme, İstatistikler ve PDF Raporu](#görselleştirme-istatistikler-ve-pdf-raporu)
-10. [Proje Dosyası ve Otomatik Taslak](#proje-dosyası-ve-otomatik-taslak)
-11. [Demo Test Verisi](#demo-test-verisi)
-12. [Sınırlamalar ve İyi Uygulamalar](#sınırlamalar-ve-iyi-uygulamalar)
-13. [Geliştirme Protokolü](#geliştirme-protokolü)
+8. [Ölçüm Belirsizliği ve Bootstrap Güven Aralıkları](#ölçüm-belirsizliği-ve-bootstrap-güven-aralıkları)
+9. [Test Matrisi Önerisi (D-optimal)](#test-matrisi-önerisi-d-optimal)
+10. [Zaman Serisinden Kararlı Rejim Tespiti](#zaman-serisinden-kararlı-rejim-tespiti)
+11. [Performans Tahmin Motoru (Rating)](#performans-tahmin-motoru-rating)
+12. [Performans Haritası ve Dışa Aktarma](#performans-haritası-ve-dışa-aktarma)
+13. [Görselleştirme, İstatistikler ve PDF Raporu](#görselleştirme-istatistikler-ve-pdf-raporu)
+14. [Proje Dosyası ve Otomatik Taslak](#proje-dosyası-ve-otomatik-taslak)
+15. [Demo Test Verisi](#demo-test-verisi)
+16. [Sınırlamalar ve İyi Uygulamalar](#sınırlamalar-ve-iyi-uygulamalar)
+17. [Geliştirme Protokolü](#geliştirme-protokolü)
 
 ---
 
@@ -49,8 +53,8 @@ python -m http.server 8000
 |---|---|
 | `index.html` | Ana uygulama arayüzü (sekmeler, formlar, grafik alanları) |
 | `css/style.css` | Arayüz (açık/koyu tema) ve PDF rapor stilleri |
-| `js/physics.js` | Fizik/hesap motoru: ifade ayrıştırıcı, özellikler, birimler, $\varepsilon$-NTU, kanatçık verimi, Wilson fit, $\Delta P$ fit, rating, demo veri üretici |
-| `js/app.js` | Arayüz katmanı: durum yönetimi, veri yükleme/eşleme, kütüphane, Plotly grafikleri, PDF, proje/taslak |
+| `js/physics.js` | Fizik/hesap motoru: ifade ayrıştırıcı, özellikler (denklem/tablo), birimler, $\varepsilon$-NTU, kanatçık verimi, kütle ve Nu–Re–Pr modelli Wilson fit, $\Delta P$ (kütle / Fanning) fit, rating, belirsizlik yayılımı, bootstrap, D-optimal öneri, kararlı rejim tespiti, performans haritası, demo veri üretici |
+| `js/app.js` | Arayüz katmanı: durum yönetimi, veri yükleme/eşleme, manuel giriş, zaman serisi, kütüphane, Plotly grafikleri, harita ve dışa aktarma (CSV/XLSX/JSON), PDF, proje/taslak, tema |
 | `materials_db.json` | Varsayılan akışkan ve katı malzeme kütüphanesi |
 | `README.md` | Bu doküman (Yardım sekmesinde birebir gösterilir) |
 | `.nojekyll` | GitHub Pages'te Jekyll işlemesini kapatır |
@@ -59,13 +63,14 @@ Kullanılan kütüphaneler (CDN, sabit sürüm): Plotly.js 2.35.2, PapaParse 5.4
 
 ## Uygulama Akışı (Sekmeler)
 
-1. **Veri & Eşleme** — CSV/TXT/Excel yükleme, sütunların fiziksel büyüklüklere bağlanması, her sütun için birim seçimi, **manuel nokta nokta test girişi**, düzenlenebilir veri tablosu.
-2. **Akışkan & Geometri** — Her taraf için akışkan, ısı transfer alanı $A$, kanatçık parametreleri ($A_f/A$, $L_f$, $t_f$, malzeme), duvar direnci $R_w$ ve analiz ayarları.
+1. **Veri & Eşleme** — CSV/TXT/Excel yükleme, sütunların fiziksel büyüklüklere bağlanması, her sütun için birim seçimi, **manuel nokta nokta test girişi** (+ D-optimal sonraki nokta önerisi), **zaman serisinden kararlı rejim tespiti**, düzenlenebilir veri tablosu.
+2. **Akışkan & Geometri** — Her taraf için akışkan, ısı transfer alanı $A$, kanatçık parametreleri ($A_f/A$, $L_f$, $t_f$, malzeme), **ısıl/hidrolik model seçimi** (kütle debisi veya boyutsuz Re/Nu–Pr) ve $D_h$, $A_c$, $L$; duvar direnci $R_w$, sensör doğrulukları ve analiz ayarları.
 3. **Kütüphane** — Sıcaklığa bağlı akışkan özellikleri (denklem veya **ölçülmüş özellik tablosu**) ve katı malzemeler; CSV ile toplu yükleme; `materials_db.json` indirme.
-4. **Analiz** — Isı dengesi, $\varepsilon$, NTU, UA hesabı; Wilson fit; $\Delta P$ fit; grafikler ve nokta tablosu.
-5. **Performans Tahmini** — Yeni debi ve giriş sıcaklıklarında $\varepsilon$, $Q$, $T_{out}$, $\Delta P$ tahmini ve debi taraması.
-6. **Rapor** — PDF mühendislik raporu, proje kaydet/yükle.
-7. **Yardım / Dokümantasyon** — Bu README.
+4. **Analiz** — Isı dengesi, $\varepsilon$, NTU, UA hesabı ve ölçüm belirsizliği; Wilson fit; $\Delta P$ fit; **bootstrap güven aralıkları**; grafikler ve nokta tablosu.
+5. **Performans Tahmini** — Yeni debi ve giriş sıcaklıklarında $\varepsilon$ (± %95 bant), $Q$, $T_{out}$, $\Delta P$ tahmini ve debi taraması.
+6. **Performans Haritası** — İstenen (veya akıllı) debi aralığı ve giriş sıcaklığı seviyelerinde $\varepsilon$, $Q$, $\Delta P$, $T_{out}$ haritası; CSV / matris CSV / Excel / JSON dışa aktarma.
+7. **Rapor** — PDF mühendislik raporu, proje kaydet/yükle.
+8. **Yardım / Dokümantasyon** — Bu README.
 
 **Açık / koyu tema (dark mode):** Üst çubuktaki 🌙 / ☀️ düğmesiyle değiştirilir. İlk açılışta işletim sisteminin tema tercihi kullanılır; seçiminiz tarayıcıda hatırlanır. Grafikler temaya göre yeniden çizilir; **PDF raporu her zaman açık temada** (baskıya uygun) üretilir.
 
@@ -147,7 +152,17 @@ $$\eta_o = 1 - \frac{A_f}{A}(1 - \eta_f), \quad \eta_f = \frac{\tanh(m_f L_f)}{m
 
 **Wilson grafiği:** Her taraf için $x = 1/(\eta_o A \dot m^{n})$ eksenine karşı, diğer tarafın model direnci çıkarılmış toplam direnç $y = 1/UA - R_w - R_{\text{diğer}}$ çizilir. Eğim $1/C$'yi verir; noktaların doğru üzerinde olması modelin tutarlılığını gösterir.
 
-> **Tanımlanabilirlik notu:** Bir tarafın direnci toplam direncin çok küçük bir kısmıysa (ör. su/hava eşanjöründe su tarafı), o tarafın $C$ ve $n$ değerleri istatistiksel olarak zayıf belirlenir; buna karşın $UA$ ve $\varepsilon$ tahmini yine de doğru olur. Parametreleri ayrı ayrı yorumlamadan önce Wilson grafiğini ve test matrisinin genişliğini kontrol edin.
+> **Tanımlanabilirlik notu:** Bir tarafın direnci toplam direncin çok küçük bir kısmıysa (ör. su/hava eşanjöründe su tarafı), o tarafın $C$ ve $n$ değerleri istatistiksel olarak zayıf belirlenir; buna karşın $UA$ ve $\varepsilon$ tahmini yine de doğru olur. Parametreleri ayrı ayrı yorumlamadan önce Wilson grafiğini ve test matrisinin genişliğini kontrol edin. **Test matrisi önerisi** bu durumu tespit edip hangi noktaların ekleneceğini söyler.
+
+### 4b. Boyutsuz Model: Nu–Re–Pr (sıcaklık ve akışkan duyarlı)
+
+$h = C\,\dot m^{n}$ yalnızca test edilen akışkan ve sıcaklık civarında geçerlidir: aynı debide viskozite değişirse (yağ, yakıt, glikol; ör. PAO'da 0→90 °C arasında μ ~11 kat azalır) $h$ ve $\Delta P$ değişir, kütle modeli bunu göremez. *Akışkan & Geometri → Isıl / hidrolik model → Boyutsuz* seçildiğinde her taraf için:
+
+$$\text{Nu} = \frac{h\,D_h}{k} = C\,\text{Re}^{\,n}\,\text{Pr}^{1/3}, \qquad \text{Re} = \frac{\dot m\,D_h}{A_c\,\mu}, \qquad \text{Pr} = \frac{c_p\,\mu}{k}$$
+
+yani $h = C \cdot \underbrace{\tfrac{k}{D_h}\text{Pr}^{1/3}}_{f}\cdot \underbrace{\text{Re}^{\,n}}_{g^{\,n}}$. Özellikler ($\mu$, $k$, $c_p$) her noktanın taraf ortalama sıcaklığında hesaplanır. Wilson fit'i aynı algoritmayla, $\dot m^{n}$ yerine $f\cdot\text{Re}^{n}$ tabanıyla yapılır (genelleştirilmiş Wilson yöntemi); $C$ boyutsuzdur ve Colburn faktörü ile $j = \text{Nu}/(\text{Re}\,\text{Pr}^{1/3}) = C\,\text{Re}^{\,n-1}$ ilişkilidir.
+
+Gerekli geometri (taraf başına): hidrolik çap $D_h$, serbest akış (minimum kesit) alanı $A_c$, akış yolu uzunluğu $L$ (ΔP için). Tahmin motoru ve harita, giriş sıcaklığı değiştiğinde özellikleri yeniden hesaplayarak $h$ ve $\Delta P$'yi günceller.
 
 ### 5. Basınç Düşümü Modeli (ΔP)
 
@@ -156,6 +171,12 @@ Her taraf için:
 $$\Delta P = K_p \cdot \dot{m}^{n_p} \quad (1.5 \le n_p \le 2.0)$$
 
 Fit, $\ln \Delta P = \ln K_p + n_p \ln \dot m$ doğrusal regresyonu ile yapılır. Bulunan $n_p$ sınırların dışındaysa en yakın sınıra çekilir ve $K_p$ bu sabit üsle yeniden hesaplanır (uyarı verilir). $n_p=2$ tam türbülanslı akışa (Fanning sürtünme faktörü $f\approx$ sabit), $n_p\to1.75$ ise $f \propto Re^{-0.25}$ (Blasius) davranışına karşılık gelir; Fanning bağıntısı $\Delta P = 4f\,\frac{L}{D_h}\,\frac{G^2}{2\rho}$ ile $G = \dot m / A_c$ olduğundan $\Delta P \propto \dot m^{2-b}$ ($f \propto Re^{-b}$) yazılabilir.
+
+**Boyutsuz modelde (Fanning):**
+
+$$\Delta P = f\,\frac{4L}{D_h}\,\frac{G^2}{2\rho}, \qquad f = K_f\,\text{Re}^{-b}, \qquad G = \frac{\dot m}{A_c}$$
+
+Her test noktasından $f_i = \Delta P_i\,2\rho D_h/(4 L G^2)$ hesaplanır ve $\ln f = \ln K_f - b\ln\text{Re}$ regresyonu yapılır; $b$, $n_p = 2-b$ sınırlarına ($1.5\le n_p\le 2.0 \Rightarrow 0\le b\le 0.5$) göre kısıtlanır. $\rho$ ve $\mu$ ortalama sıcaklıkta alındığından ΔP tahmini sıcaklıkla doğru ölçeklenir. Giriş/çıkış ve ivmelenme kayıpları $K_f$ içine gömülüdür.
 
 ---
 
@@ -265,6 +286,34 @@ Varsayılan kütüphane: Water, Air, Ethylene Glycol 50%, Engine Oil (SAE 30) (d
 
 1D modda sabit tarafın direnci $R_{\text{sabit}} = c$ (tek sayı) bulunur; bu taraf için $h$ değeri $\eta_o(h)\,h\,A = 1/R_{\text{sabit}}$ denkleminden çözülür ve *varsayılan üs* (ayarlar, varsayılan $n=0.6$) ile $C = h/\bar{\dot m}^{\,n}$ hesaplanır. Bu nedenle 1D modda sabit tutulan debinin değiştirildiği tahminler bu varsayıma dayanır (uygulama uyarır).
 
+## Ölçüm Belirsizliği ve Bootstrap Güven Aralıkları
+
+**1) Nokta bazında ölçüm belirsizliği.** *Akışkan & Geometri* sekmesinde sensör doğrulukları (%95, genişletilmiş) girilir: $U_T$ [K], $U_{\dot m}$ [%], $U_{\Delta P}$ [%]. Her test noktası için $\varepsilon$, UA ve Q belirsizliği sayısal (merkezi fark) yayılımla hesaplanır:
+
+$$U(\varepsilon) = \sqrt{\sum_i \left(\frac{\partial \varepsilon}{\partial x_i}\,U_{x_i}\right)^2}, \qquad x_i \in \{\dot m_1, \dot m_2, T_{1,in}, T_{1,out}, T_{2,in}, T_{2,out}\}$$
+
+Sonuçlar nokta tablosunda ($U(\varepsilon)$ sütunu), ε parity grafiğinde yatay hata çubukları olarak ve özet kartında gösterilir. Küçük sıcaklık farklarında (ör. düşük ısı yükü) $U(\varepsilon)$ hızla büyür — bu noktalar fit'te daha az güvenilirdir.
+
+**2) Parametre güven aralıkları (bootstrap).** *Analiz → Σ Güven Aralığı (Bootstrap)*: fit'e dahil noktalar yerine koyarak $B$ kez (varsayılan 100) yeniden örneklenir, her örnek için Wilson fit'i (önceki çözümün çevresinde hızlı yerel arama ile) tekrarlanır. $C_1, n_1, C_2, n_2$ için 2.5–97.5 yüzdelik aralıkları %95 güven aralığı olarak raporlanır. Bootstrap sonrası performans tahmini ve haritadaki her nokta için $\varepsilon$'nin %95 bandı da (tüm bootstrap modelleriyle hesaplanan dağılımdan) verilir. Bootstrap ölçüm saçılımını doğrudan içerdiğinden ayrı bir birleştirme yapılmaz.
+
+## Test Matrisi Önerisi (D-optimal)
+
+*Veri & Eşleme → Manuel Test Girişi → Önerilen Sonraki Test Noktaları*: mevcut fit'e göre, parametre vektörü $\boldsymbol\theta = [\ln C_1,\, n_1,\, \ln C_2,\, n_2]$ ve yanıt $y=\ln(1/UA)$ için duyarlılık (Jacobian) $J$ sayısal hesaplanır. Bilgi matrisi $M = \sum J^\mathsf{T} J$ olmak üzere, aday ızgaradan (harita debi aralığı, 12×12) her adımda
+
+$$\max_{c}\; \ln\det\!\left(M + J_c^\mathsf{T} J_c\right)$$
+
+olan nokta seçilir (açgözlü D-optimal tasarım). Mevcut noktalara %5'ten yakın adaylar elenir. Tablo; önerilen debileri (eşleme birimlerinde), her noktanın bilgi kazancını ve tüm öneriler eklendiğinde beklenen parametre standart sapması azalmasını (%) gösterir. Ayrıca taraf direnç payları hesaplanır: bir tarafın payı < %20 ise o tarafın parametrelerinin zayıf belirlendiği belirtilir ve hangi yönde ölçüm alınacağı önerilir. 1D modda sabit tutulan debiyi değiştiren adaylar da üretilir. **Forma al** düğmesi debileri manuel giriş formuna aktarır.
+
+## Zaman Serisinden Kararlı Rejim Tespiti
+
+*Veri & Eşleme → Zaman Serisinden Kararlı Rejim Tespiti*: veri kaydedici dosyası (CSV/Excel) yüklenir. Zaman sütunu adından algılanır (`Time`, `t [s]`, `Zaman`, tarih-saat metni de olabilir); yoksa sabit örnekleme aralığı kullanılır.
+
+- **Ölçüt sinyalleri:** varsayılan olarak eşleme tablosundaki debi ve sıcaklık sütunları (yoksa adı debi/sıcaklık gibi olanlar) seçilir. Sıcaklıklar mutlak tolerans (varsayılan 0.2 K), diğerleri göreli tolerans (varsayılan %1) ile değerlendirilir.
+- **Kayan pencere** $W$ (varsayılan 60 s): her $t_i$ için $[t_i-W,\,t_i]$ penceresinde her sinyalin standart sapması $\sigma \le \text{tol}$ **ve** doğrusal eğim kaynaklı değişim $\vert \text{eğim}\vert\cdot W \le \text{tol}$ ise o an kararlıdır (önek toplamlarıyla $O(N)$).
+- Ardışık kararlı anlar birleştirilir; süresi *min. kararlı süre*'den kısa olanlar atılır. Geçiş bölgelerinin ortalamaya sızmaması için her bölgenin iki ucundan *kenar kırpma* (varsayılan %10) kadar kısım çıkarılır.
+- Her bölge için tüm sayısal sütunların ortalaması bir test noktası olur (`SS01`, `SS02`…; `t_start`, `t_end`, `n_samples` ile). Grafikte kararlı bölgeler yeşil, ortalaması alınan kısım çerçeveli gösterilir.
+- **＋ Noktaları Veri Setine Ekle** ile mevcut veri setine eklenir (veri seti yoksa yeni veri seti oluşturulur ve otomatik eşleme yapılır).
+
 ## Performans Tahmin Motoru (Rating)
 
 Analizden elde edilen $C_1, n_1, C_2, n_2, R_w$ ve $K_p, n_p$ ile istenen $\dot m_1, \dot m_2, T_{1,in}, T_{2,in}$ için:
@@ -272,9 +321,39 @@ Analizden elde edilen $C_1, n_1, C_2, n_2, R_w$ ve $K_p, n_p$ ile istenen $\dot 
 1. $h_1, h_2$ → $\eta_{o1}, \eta_{o2}$ → $UA$
 2. $T_m$ tahmini → $c_p$ → $C_{\min}, C_r$ → $\text{NTU} = UA/C_{\min}$ → $\varepsilon$ (çapraz akış bağıntısı)
 3. $Q = \varepsilon\,C_{\min}\,\vert T_{1,in}-T_{2,in}\vert$, $T_{1,out} = T_{1,in} \mp Q/C_1$, $T_{2,out} = T_{2,in} \pm Q/C_2$
-4. $T_m$ değişmeyene kadar 2–3 tekrarlanır; $\Delta P_i = K_{p,i}\,\dot m_i^{n_{p,i}}$.
+4. $T_m$ değişmeyene kadar 2–3 tekrarlanır (boyutsuz modelde $\mu, k, \text{Pr}$ ve dolayısıyla $h$ de her adımda güncellenir); $\Delta P_i = K_{p,i}\,\dot m_i^{n_{p,i}}$ veya Fanning bağıntısı.
 
-Girdiler test aralığının ±%10 dışına çıkarsa **ekstrapolasyon** uyarısı verilir. Sağdaki grafik, diğer debi sabitken seçili debinin taranmasıyla $\varepsilon$, $Q$ ve $\Delta P$ eğrilerini gösterir.
+Girdiler test aralığının ±%10 dışına çıkarsa **ekstrapolasyon** uyarısı verilir; giriş sıcaklığı test aralığından 10 K'den fazla farklıysa da uyarı verilir (kütle modelinde boyutsuz model önerilir). Bootstrap yapıldıysa $\varepsilon$ için %95 güven aralığı gösterilir. Sağdaki grafik, diğer debi sabitken seçili debinin taranmasıyla $\varepsilon$, $Q$ ve $\Delta P$ eğrilerini gösterir.
+
+## Performans Haritası ve Dışa Aktarma
+
+*Performans Haritası* sekmesi, analiz sonucundaki modelle bir debi ızgarasında tüm performans büyüklüklerini hesaplar.
+
+**Aralık:** $\dot m_1$ ve $\dot m_2$ için min / max / adım sayısı ve birim; giriş sıcaklıkları için bir veya birden çok seviye (virgülle, ör. `60, 80, 100`). Her $T_{1,in}\times T_{2,in}$ kombinasyonu ayrı bir harita seviyesidir. **Boş bırakılan her alan akıllı aralıkla doldurulur:**
+
+| Alan | Akıllı varsayılan |
+|---|---|
+| Debi aralığı | Test edilen min–max'ın ×0.8 – ×1.2'si (hafif ekstrapolasyon) |
+| Dağılım | max/min > 4 ise logaritmik, değilse doğrusal (veya elle seçim) |
+| Adım sayısı | 13 (1D modda sabit debi tek değer → eğri haritası) |
+| Sıcaklıklar | Test verisinin ortalama giriş sıcaklıkları |
+
+**✨ Akıllı Aralık** düğmesi bu değerleri forma yazar; sonra düzenleyebilirsiniz.
+
+**Her ızgara noktasında:** $\varepsilon$, $Q$, $T_{1,out}$, $T_{2,out}$, $\Delta P_1$, $\Delta P_2$, NTU, UA, $C_r$, $h_1$, $h_2$, $\eta_o$, Re (boyutsuz modelde), bootstrap yapıldıysa $\varepsilon$ %95 alt/üst sınırları ve **ekstrapolasyon bayrağı**. Test edilen bölge, fit'e dahil noktaların $(\ln\dot m_1, \ln\dot m_2)$ düzlemindeki **dışbükey zarfı**dır (1D modda değişken debi aralığı); zarf dışındaki noktalar `extrapolated = 1` olarak işaretlenir ve grafikte gri × ile gösterilir.
+
+**Grafik:** seçilen büyüklük ve seviye için kontur haritası (test noktaları, kesikli zarf çizgisi); 1D modda eğri (+ %95 bant).
+
+**Dışa aktarma formatları** (tüm seviyeler):
+
+| Format | İçerik | Tipik kullanım |
+|---|---|---|
+| **Uzun CSV** | Her satır bir ızgara noktası, tüm büyüklükler, seçilen birimlerle | Analiz, veritabanı |
+| **Matris CSV** | Seçili büyüklük ve seviye: satırlar $\dot m_1$, sütunlar $\dot m_2$ | 2D lookup tablosu (Simulink, GT-Suite, AMESim, Modelica…) |
+| **Excel (.xlsx)** | `Info` (model, parametreler, GA'lar, birimler) + her seviye × büyüklük için matris sayfası (`L1_eps`, `L1_dp1`…) + `Long` | Raporlama, paylaşım |
+| **JSON** | Izgara (SI), tüm noktalar, zarf, fit ve ΔP parametreleri, geometri | Başka yazılımlara aktarma |
+
+Harita, analiz veya bootstrap yeniden çalıştırıldığında otomatik güncellenir ve PDF raporuna eklenir.
 
 ## Görselleştirme, İstatistikler ve PDF Raporu
 
@@ -286,6 +365,7 @@ Grafikler (Plotly.js, etkileşimli; her grafik kamera simgesiyle PNG indirilebil
 - **Wilson Plot** — iki taraf için direnç ayrıştırması.
 - **Isı dengesi hatası** çubuk grafiği (eşik çizgisi ile).
 - **ΔP–debi** eğrileri.
+- **Performans haritası** (kontur) ve **kararlı rejim** zaman serisi grafiği.
 
 İstatistikler (fit'e dahil noktalar üzerinden):
 
@@ -316,6 +396,8 @@ Gürültü nedeniyle su tarafı parametreleri (toplam direncin ~%15'i) gerçek d
 - Faz değişimi (yoğuşma/buharlaşma) ve nem transferi modellenmez; ıslak yüzey testlerinde duyulur ısı dengesi bozulur.
 - Wilson analizi için test matrisi her iki debiyi de geniş bir aralıkta (tercihen ≥ 3:1) değiştirmelidir.
 - Özellik polinomlarını geçerlilik aralığı dışında kullanmaktan kaçının.
+- Kütle debisi modeli tek bir akışkan/sıcaklık civarında geçerlidir; farklı giriş sıcaklıklarına veya akışkanlara tahmin için boyutsuz (Re/Nu–Pr) modeli kullanın. Boyutsuz model de laminer↔türbülanslı geçiş gibi rejim değişimlerini tek bir üsle temsil edemez — haritayı test edilen Re aralığında tutun.
+- Bootstrap güven aralıkları yalnızca istatistiksel (rastgele) belirsizliği yansıtır; sistematik sensör hatalarını içermez.
 - Alanlar bilinmiyorsa $A = 1$ m² ve kanatçık verimi kapalı kullanılabilir; bu durumda $C$ katsayıları doğrudan $(hA)$ korelasyonu olarak yorumlanır ve tahmin motoru yine doğru çalışır.
 
 ---
