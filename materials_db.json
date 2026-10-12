@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "description": "HEXeffectiveness varsayılan malzeme ve akışkan kütüphanesi. Denklemler: katsayı listesi 'a0; a1; a2; a3' (c = a0 + a1*T + a2*T^2 + a3*T^3) veya T değişkenli ifade (örn. exp(-6.3 - 0.03*T)). T birimi T_unit alanında (C veya K).",
+  "fluids": [
+    {
+      "name": "Water",
+      "T_unit": "C",
+      "T_range": [0, 100],
+      "Cp_Eq": "4213.92; -2.15431; 0.036352; -0.000148019",
+      "Density_Eq": "999.915; 0.0234538; -0.00598893; 1.61033e-05",
+      "Viscosity_Eq": "exp(-6.3292 + (-0.0326019)*T + (0.000214288)*T^2 + (-7.30479e-07)*T^3)",
+      "k_Eq": "0.56042; 0.00208714; -8.28671e-06; -7.77001e-09"
+    },
+    {
+      "name": "Air",
+      "T_unit": "C",
+      "T_range": [-20, 200],
+      "Cp_Eq": "1003.86; 0.0435035; 9.44596e-05; 8.22062e-07",
+      "Density_Eq": "1.29376; -0.00470805; 1.47254e-05; -2.44511e-08",
+      "Viscosity_Eq": "1.72367e-05; 4.74105e-08; -1.63145e-11; -4.65879e-14",
+      "k_Eq": "0.0242557; 7.10146e-05; 5.57523e-10; 1.60856e-11"
+    },
+    {
+      "name": "Ethylene Glycol 50%",
+      "T_unit": "C",
+      "T_range": [-20, 100],
+      "Cp_Eq": "3270; 3.5",
+      "Density_Eq": "1081.4; -0.393849; -0.00258929; 6.94444e-06",
+      "Viscosity_Eq": "exp(-4.87484 + (-0.0401488)*T + (0.000241283)*T^2 + (-7.35797e-07)*T^3)",
+      "k_Eq": "0.358048; 0.000628175; -1.33929e-06; -3.47222e-09"
+    },
+    {
+      "name": "Engine Oil (SAE 30)",
+      "T_unit": "C",
+      "T_range": [20, 120],
+      "Cp_Eq": "1795; 4.25",
+      "Density_Eq": "900; -0.6",
+      "Viscosity_Eq": "exp(1.48398 + (-0.0950861)*T + (0.00051817)*T^2 + (-1.23745e-06)*T^3)",
+      "k_Eq": "0.146667; -4.53042e-05; -1.38889e-06; 8.10185e-09"
+    }
+  ],
+  "solids": [
+    { "name": "Aluminum 3003", "k": 193 },
+    { "name": "Aluminum 6061", "k": 167 },
+    { "name": "Aluminum 1100", "k": 222 },
+    { "name": "Copper (C11000)", "k": 388 },
+    { "name": "Brass", "k": 110 },
+    { "name": "Stainless Steel 304", "k": 16.2 },
+    { "name": "Carbon Steel", "k": 50 }
+  ]
+}
