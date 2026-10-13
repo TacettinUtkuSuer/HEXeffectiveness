@@ -2,7 +2,7 @@
 
 **HEXeffectiveness**, çapraz akışlı kanatçıklı plakalı (cross-flow plate-fin) eşanjörlerin test verilerini fiziksel kanunlara ($\varepsilon$-NTU, Wilson Plot, kanatçık verimi, $\Delta P = K_p\,\dot m^{n_p}$) dayanarak işleyen, **tamamen tarayıcıda (sunucusuz)** çalışan bir tek sayfa web uygulamasıdır (SPA). GitHub Pages üzerinde doğrudan yayınlanabilir; verileriniz bilgisayarınızdan dışarı çıkmaz.
 
-> Bu dosya hem GitHub deposunda dokümantasyon olarak durur hem de uygulamanın **❓ Yardım / Dokümantasyon** sekmesinde `fetch('./README.md')` + `marked.js` (+ MathJax) ile **birebir ve canlı** olarak gösterilir. Teori ve kullanım açıklamaları tek kaynaktan yönetilir.
+> Bu dosya hem GitHub deposunda dokümantasyon olarak durur hem de uygulamanın **❓ Yardım** panelinde `fetch('./README.md')` + `marked.js` (+ MathJax) ile **birebir ve canlı** olarak gösterilir. Teori ve kullanım açıklamaları tek kaynaktan yönetilir.
 
 ---
 
@@ -10,7 +10,7 @@
 
 1. [Hızlı Başlangıç](#hızlı-başlangıç)
 2. [Dosya Yapısı](#dosya-yapısı)
-3. [Uygulama Akışı (Sekmeler)](#uygulama-akışı-sekmeler)
+3. [Uygulama Akışı (4 Adım)](#uygulama-akışı-4-adım)
 4. [Metodoloji ve Formüller](#metodoloji-ve-formüller)
 5. [Veri Girişi, Sütun Eşleme ve Birim Dönüşümü](#veri-girişi-sütun-eşleme-ve-birim-dönüşümü)
 6. [Malzeme ve Akışkan Kütüphanesi](#malzeme-ve-akışkan-kütüphanesi)
@@ -36,7 +36,7 @@
 2. *Settings → Pages → Build and deployment → Source: Deploy from a branch* ve dalı (`main` / kök `/`) seçin.
 3. `https://<kullanıcı>.github.io/<repo>/` adresini açın.
 
-Depodaki boş `.nojekyll` dosyası, GitHub Pages'in Jekyll işlemesini kapatır; böylece `README.md` ve `materials_db.json` ham olarak sunulur ve Yardım sekmesi tarafından okunabilir.
+Depodaki boş `.nojekyll` dosyası, GitHub Pages'in Jekyll işlemesini kapatır; böylece `README.md` ve `materials_db.json` ham olarak sunulur ve Yardım paneli tarafından okunabilir.
 
 **Yerel çalıştırma** (tarayıcılar `file://` altında `fetch()`'i engellediği için küçük bir sunucu gerekir):
 
@@ -45,32 +45,39 @@ python -m http.server 8000
 # ardından http://localhost:8000 adresini açın
 ```
 
-**30 saniyede deneme:** Üst çubuktaki **▶ Demo Veriyi Yükle** düğmesine basın. Sentetik bir su/hava radyatörü test verisi yüklenir, sütunlar eşlenir, analiz çalışır ve sonuçlar *Analiz* sekmesinde gösterilir.
+**30 saniyede deneme:** Üst çubuktaki **▶ Demo ile dene** düğmesine basın. Sentetik bir su/hava radyatörü test verisi yüklenir, sütunlar eşlenir, analiz çalışır ve **3 · Sonuç** adımı açılır.
 
 ## Dosya Yapısı
 
 | Dosya | Açıklama |
 |---|---|
-| `index.html` | Ana uygulama arayüzü (sekmeler, formlar, grafik alanları) |
+| `index.html` | Ana uygulama arayüzü (4 adım, yan paneller, formlar, grafik alanları) |
 | `css/style.css` | Arayüz (açık/koyu tema) ve PDF rapor stilleri |
 | `js/physics.js` | Fizik/hesap motoru: ifade ayrıştırıcı, özellikler (denklem/tablo), birimler, $\varepsilon$-NTU, kanatçık verimi, kütle ve Nu–Re–Pr modelli Wilson fit, $\Delta P$ (kütle / Fanning) fit, rating, belirsizlik yayılımı, bootstrap, D-optimal öneri, kararlı rejim tespiti, performans haritası, demo veri üretici |
-| `js/app.js` | Arayüz katmanı: durum yönetimi, veri yükleme/eşleme, manuel giriş, zaman serisi, kütüphane, Plotly grafikleri, harita ve dışa aktarma (CSV/XLSX/JSON), PDF, proje/taslak, tema |
+| `js/core.js` | Durum, ortak yardımcılar, akışkan/geometri hazırlığı, grafik teması, proje/taslak, tema |
+| `js/library.js` | Kütüphane paneli (tablo içe aktarma, denklemler, katı malzemeler) |
+| `js/data.js` | Adım 1: dosya + eşleme, elle giriş, D-optimal öneri, zaman serisi, demo |
+| `js/analysis.js` | Adım 3: analiz, düz dille sonuç özeti, grafikler, bootstrap |
+| `js/outputs.js` | Adım 4: tek nokta tahmini, performans haritası ve dışa aktarma, PDF |
+| `js/main.js` | Gezinme (adımlar, yan paneller, menü), bağlama, olaylar, başlatma, Yardım |
 | `materials_db.json` | Varsayılan akışkan ve katı malzeme kütüphanesi |
-| `README.md` | Bu doküman (Yardım sekmesinde birebir gösterilir) |
+| `README.md` | Bu doküman (Yardım panelinde birebir gösterilir) |
 | `.nojekyll` | GitHub Pages'te Jekyll işlemesini kapatır |
 
 Kullanılan kütüphaneler (CDN, sabit sürüm): Plotly.js 2.35.2, PapaParse 5.4.1, marked 12.0.2, html2pdf.js 0.10.1, SheetJS (xlsx) 0.18.5, MathJax 3.2.2.
 
-## Uygulama Akışı (Sekmeler)
+## Uygulama Akışı (4 Adım)
 
-1. **Veri & Eşleme** — CSV/TXT/Excel yükleme, sütunların fiziksel büyüklüklere bağlanması, her sütun için birim seçimi, **manuel nokta nokta test girişi** (+ D-optimal sonraki nokta önerisi), **zaman serisinden kararlı rejim tespiti**, düzenlenebilir veri tablosu.
-2. **Akışkan & Geometri** — Her taraf için akışkan, ısı transfer alanı $A$, kanatçık parametreleri ($A_f/A$, $L_f$, $t_f$, malzeme), **ısıl/hidrolik model seçimi** (kütle debisi veya boyutsuz Re/Nu–Pr) ve $D_h$, $A_c$, $L$; duvar direnci $R_w$, sensör doğrulukları ve analiz ayarları.
-3. **Kütüphane** — Sıcaklığa bağlı akışkan özellikleri (denklem veya **ölçülmüş özellik tablosu**) ve katı malzemeler; CSV ile toplu yükleme; `materials_db.json` indirme.
-4. **Analiz** — Isı dengesi, $\varepsilon$, NTU, UA hesabı ve ölçüm belirsizliği; Wilson fit; $\Delta P$ fit; **bootstrap güven aralıkları**; grafikler ve nokta tablosu.
-5. **Performans Tahmini** — Yeni debi ve giriş sıcaklıklarında $\varepsilon$ (± %95 bant), $Q$, $T_{out}$, $\Delta P$ tahmini ve debi taraması.
-6. **Performans Haritası** — İstenen (veya akıllı) debi aralığı ve giriş sıcaklığı seviyelerinde $\varepsilon$, $Q$, $\Delta P$, $T_{out}$ haritası; CSV / matris CSV / Excel / JSON dışa aktarma.
-7. **Rapor** — PDF mühendislik raporu, proje kaydet/yükle.
-8. **Yardım / Dokümantasyon** — Bu README.
+Uygulama, üstteki adım çubuğuyla ilerleyen **4 adımlı** bir akıştır. Her adımın durumu çubukta görünür (✓ tamam, ⚠ eksik); adımlar arasında istediğiniz an geçebilirsiniz. Her ekranın altında **Geri / Devam** düğmeleri vardır.
+
+| Adım | Ne yaparsınız | Ayrıntı |
+|---|---|---|
+| **1 · Veri** | Test verisini getirirsiniz: **📄 Dosyadan** (CSV/Excel + sütun eşleme), **✍️ Elle giriş** (test sırasında nokta nokta, anlık kontrol ve "sıradaki noktayı nerede ölçmeliyim?" önerisi) veya **📈 Kayıt cihazından** (zaman serisinden kararlı rejim tespiti). Ortak veri tablosunda noktaları düzenleyip silebilirsiniz. | En az 3 nokta ve zorunlu sütunlar eşlenince "Devam" aktifleşir. |
+| **2 · Eşanjör** | Her taraf için akışkanı seçersiniz ve tek bir soruyu yanıtlarsınız: sonuçları test sıcaklıkları civarında mı, farklı sıcaklıklarda da mı kullanacaksınız? (ikincisi boyutsuz Nu–Re–Pr modelini açar). Isı dengesi filtresi burada. | Alan, kanatçık, duvar direnci, sensör doğrulukları ve fit sınırları **⚙ Gelişmiş ayarlar** altında katlıdır; varsayılanlar çoğu test için uygundur. |
+| **3 · Sonuç** | Analiz otomatik çalışır. En üstte düz dille bir **karar** (✅ güvenilir / ⚠️ kabul edilebilir / ❌ zayıf), tıklanabilir **yapılacaklar** listesi ve anahtar sayılar; altında ölçüm↔model ve etkinlik–debi grafikleri. | Katsayılar ve güven aralığı, ısı dengesi, 3B yüzey, Wilson grafiği, basınç düşümü, nokta tablosu ve teknik uyarılar katlanır bölümlerdedir. |
+| **4 · Çıktılar** | **🎯 Tek nokta tahmini** (alanlar test ortalamasıyla önceden dolu), **🗺️ Performans haritası** (açılınca otomatik aralıkla hazırlanır; Excel / tablo CSV / liste CSV / JSON indir) ve **📄 Rapor ve proje** (PDF, proje dosyası). | Harita aralığı **Aralığı özelleştir** altında değiştirilebilir. |
+
+Üst çubuk: **▶ Demo ile dene**, **📁 Proje** menüsü (kaydet, aç, demo CSV, sıfırla), **📚 Kütüphane** ve **❓ Yardım** yan panelleri, tema düğmesi. Alanların yanındaki **?** işaretlerinin üzerine gelince kısa açıklama görünür.
 
 **Açık / koyu tema (dark mode):** Üst çubuktaki 🌙 / ☀️ düğmesiyle değiştirilir. İlk açılışta işletim sisteminin tema tercihi kullanılır; seçiminiz tarayıcıda hatırlanır. Grafikler temaya göre yeniden çizilir; **PDF raporu her zaman açık temada** (baskıya uygun) üretilir.
 
@@ -184,7 +191,7 @@ Her test noktasından $f_i = \Delta P_i\,2\rho D_h/(4 L G^2)$ hesaplanır ve $\l
 
 **Desteklenen dosyalar:** `.csv`, `.txt` (ayraç otomatik algılanır), `.xlsx`, `.xls` (ilk sayfa). İlk satır başlık olmalıdır. Ondalık ayırıcı olarak nokta veya virgül kabul edilir.
 
-**Sütun eşleme:** Sütunlar herhangi bir sırada olabilir. *Veri & Eşleme* sekmesindeki açılır menülerle aşağıdaki büyüklüklere bağlanır (`*` zorunlu):
+**Sütun eşleme:** Sütunlar herhangi bir sırada olabilir. *1 · Veri → 📄 Dosyadan* bölümündeki açılır menülerle aşağıdaki büyüklüklere bağlanır (`*` zorunlu):
 
 | Anahtar | Büyüklük | Not |
 |---|---|---|
@@ -197,15 +204,15 @@ Her test noktasından $f_i = \Delta P_i\,2\rho D_h/(4 L G^2)$ hesaplanır ve $\l
 
 ### Manuel Test Girişi (nokta nokta)
 
-Test sırasında veriyi dosya hazırlamadan, her kararlı rejim noktasında doğrudan girebilirsiniz (*Veri & Eşleme → Manuel Test Girişi*):
+Test sırasında veriyi dosya hazırlamadan, her kararlı rejim noktasında doğrudan girebilirsiniz (*1 · Veri → ✍️ Elle giriş*):
 
-1. **＋ Boş Veri Seti** ile yeni bir test başlatın (veya noktaları mevcut CSV veri setine ekleyin).
+1. **＋ Yeni boş test** ile yeni bir test başlatın (veya noktaları mevcut CSV veri setine ekleyin).
 2. ṁ₁, ṁ₂, T₁in, T₁out, T₂in, T₂out, ΔP₁, ΔP₂ (isteğe bağlı ε, etiket, not) değerlerini girin. Her alanın yanındaki birim seçicisi eşleme tablosuyla ortaktır.
 3. Değerler girildikçe **anlık kontrol** yapılır: $Q_1$, $Q_2$, **ısı dengesi hatası** (eşik aşılırsa uyarı), $\varepsilon$, NTU, UA. Daha önce bir fit yapıldıysa noktanın **mevcut modele göre sapması** da gösterilir — şüpheli ölçümü test düzeneğinde hemen tekrarlayabilirsiniz.
 4. **＋ Nokta Ekle** (veya <kbd>Enter</kbd>). Giriş sıcaklıkları sonraki nokta için korunur, diğer alanlar temizlenir.
-5. *Her eklemede analizi yeniden çalıştır* açıksa (≥ 3 nokta) Wilson fit'i, grafikler ve tahminler her noktada güncellenir.
+5. *Her noktada analizi güncelle* açıksa (≥ 3 nokta) Wilson fit'i, grafikler ve tahminler her noktada güncellenir.
 
-Veri tablosunda ✎ ile bir nokta forma alınıp düzeltilebilir, ✕ ile silinebilir (CSV'den gelen satırlar dahil). **⬇ CSV Dışa Aktar** veri setini dosyaya kaydeder; ayrıca her değişiklik otomatik taslağa yazıldığından sayfa kapansa da noktalar kaybolmaz.
+Veri tablosunda ✎ ile bir nokta forma alınıp düzeltilebilir, ✕ ile silinebilir (CSV'den gelen satırlar dahil). **Veri tablosu → ⬇ CSV olarak indir** veri setini dosyaya kaydeder; ayrıca her değişiklik otomatik taslağa yazıldığından sayfa kapansa da noktalar kaybolmaz.
 
 **Otomatik Eşle** düğmesi, başlık adlarından (ör. `m_dot1`, `T1_in`, `Su Debisi`, `Hava T_cikis`, `dP`) ve köşeli/normal parantez içindeki birimlerden (`[kg/h]`, `(kPa)`) tahmin yapar; sonucu her zaman kontrol edin.
 
@@ -224,7 +231,7 @@ Uygulama açılışta `./materials_db.json` dosyasını okur (okunamazsa gömül
 
 ### Özellik tablosundan akışkan ekleme
 
-Sıcaklığa karşı tablo halinde özellik verisi (ör. yakıt veya yağ veri sayfası) doğrudan yüklenebilir — *Kütüphane → Özellik Tablosundan Akışkan Ekle → ⬆ Özellik Tablosu Yükle* (birden çok dosya seçilebilir):
+Sıcaklığa karşı tablo halinde özellik verisi (ör. yakıt veya yağ veri sayfası) doğrudan yüklenebilir — *📚 Kütüphane → Tablo dosyasından akışkan ekle → ⬆ Tablo dosyası seç* (birden çok dosya seçilebilir):
 
 ```csv
 T [°C],ρ [kg/m³],cp [J/kg·K],μ [Pa·s],k [W/m·K]
@@ -244,7 +251,7 @@ T [°C],ρ [kg/m³],cp [J/kg·K],μ [Pa·s],k [W/m·K]
 | **Tablo + enterpolasyon** (önerilen, varsayılan) | $\rho$, $c_p$, $k$: tablo noktaları arasında doğrusal; $\mu$: $\ln\mu$ üzerinde doğrusal, $\mu(T) = \exp\!\left[\ln\mu_i + \frac{T-T_i}{T_{i+1}-T_i}(\ln\mu_{i+1}-\ln\mu_i)\right]$ | Veriye en sadık; viskozitesi geniş aralıkta değişen akışkanlar (ör. PAO'da −54…90 °C arasında ~900 kat) |
 | **Polinom / ifadeye dönüştür** | En küçük kareler: $c_p, \rho, k$ → 3. derece polinom; $\mu$ → $\exp(a_0 + a_1T + a_2T^2 + a_3T^3)$ | Taşınabilir, kompakt denklem istendiğinde |
 
-Her iki modelde tablo verisi saklanır; uydurulan denklemler de `*_Eq` alanlarına yazılır, böylece model *Akışkan Ekle / Düzenle* formundaki **Model kaynağı** seçimiyle sonradan değiştirilebilir. Form, uydurmanın tabloya göre maksimum % hatasını ve dört özelliğin eğrisini (μ logaritmik eksende) tablo noktalarıyla birlikte gösterir. Tablo aralığı dışındaki sıcaklıklarda uç segmentlerle ekstrapolasyon yapılır ve analizde uyarı verilir.
+Her iki modelde tablo verisi saklanır; uydurulan denklemler de `*_Eq` alanlarına yazılır, böylece model *📚 Kütüphane → Akışkanı düzenle* bölümündeki **Model** seçimiyle sonradan değiştirilebilir. Form, uydurmanın tabloya göre maksimum % hatasını ve dört özelliğin eğrisini (μ logaritmik eksende) tablo noktalarıyla birlikte gösterir. Tablo aralığı dışındaki sıcaklıklarda uç segmentlerle ekstrapolasyon yapılır ve analizde uyarı verilir.
 
 **Denklem formatı** (her özellik alanı için):
 
@@ -265,9 +272,9 @@ Fluid_Name,Cp_Eq,Density_Eq,Viscosity_Eq,k_Eq,T_Unit
 Propylene Glycol 40%,3600; 3.0,1040; -0.5,exp(-4.6 - 0.035*T),0.40; 0.0006,C
 ```
 
-Aynı isimli akışkan varsa güncellenir. **CSV Şablonu** düğmesi mevcut kütüphaneyi şablon olarak indirir.
+Aynı isimli akışkan varsa güncellenir. **CSV şablonu** düğmesi mevcut kütüphaneyi şablon olarak indirir.
 
-**Repo kalıcılığı:** Arayüzden eklenen/düzenlenen akışkanlar önce tarayıcı taslağında saklanır. Kalıcı yapmak için **⬇ Kütüphaneyi İndir** ile güncel `materials_db.json` dosyasını indirip depodaki dosyanın yerine koyun ve commit edin. **Repo Varsayılanına Dön** düğmesi kütüphaneyi depodaki dosyaya sıfırlar.
+**Repo kalıcılığı:** Arayüzden eklenen/düzenlenen akışkanlar önce tarayıcı taslağında saklanır. Kalıcı yapmak için **📚 Kütüphane → Kütüphaneyi kalıcı yap → ⬇ materials_db.json indir** ile güncel `materials_db.json` dosyasını indirip depodaki dosyanın yerine koyun ve commit edin. **Varsayılana dön** düğmesi kütüphaneyi depodaki dosyaya sıfırlar.
 
 Varsayılan kütüphane: Water, Air, Ethylene Glycol 50%, Engine Oil (SAE 30) (denklem) ve **JP8** (0…90 °C), **PAO** (−54…90 °C) (tablo); katılar: Aluminum 3003/6061/1100, Copper, Brass, Stainless Steel 304, Carbon Steel. Polinomlar tablo verilerine en küçük kareler ile uydurulmuştur (geçerlilik aralığı `T_range` alanındadır).
 
@@ -288,17 +295,17 @@ Varsayılan kütüphane: Water, Air, Ethylene Glycol 50%, Engine Oil (SAE 30) (d
 
 ## Ölçüm Belirsizliği ve Bootstrap Güven Aralıkları
 
-**1) Nokta bazında ölçüm belirsizliği.** *Akışkan & Geometri* sekmesinde sensör doğrulukları (%95, genişletilmiş) girilir: $U_T$ [K], $U_{\dot m}$ [%], $U_{\Delta P}$ [%]. Her test noktası için $\varepsilon$, UA ve Q belirsizliği sayısal (merkezi fark) yayılımla hesaplanır:
+**1) Nokta bazında ölçüm belirsizliği.** *2 · Eşanjör → ⚙ Gelişmiş ayarlar* altında sensör doğrulukları (%95, genişletilmiş) girilir: $U_T$ [K], $U_{\dot m}$ [%], $U_{\Delta P}$ [%]. Her test noktası için $\varepsilon$, UA ve Q belirsizliği sayısal (merkezi fark) yayılımla hesaplanır:
 
 $$U(\varepsilon) = \sqrt{\sum_i \left(\frac{\partial \varepsilon}{\partial x_i}\,U_{x_i}\right)^2}, \qquad x_i \in \{\dot m_1, \dot m_2, T_{1,in}, T_{1,out}, T_{2,in}, T_{2,out}\}$$
 
 Sonuçlar nokta tablosunda ($U(\varepsilon)$ sütunu), ε parity grafiğinde yatay hata çubukları olarak ve özet kartında gösterilir. Küçük sıcaklık farklarında (ör. düşük ısı yükü) $U(\varepsilon)$ hızla büyür — bu noktalar fit'te daha az güvenilirdir.
 
-**2) Parametre güven aralıkları (bootstrap).** *Analiz → Σ Güven Aralığı (Bootstrap)*: fit'e dahil noktalar yerine koyarak $B$ kez (varsayılan 100) yeniden örneklenir, her örnek için Wilson fit'i (önceki çözümün çevresinde hızlı yerel arama ile) tekrarlanır. $C_1, n_1, C_2, n_2$ için 2.5–97.5 yüzdelik aralıkları %95 güven aralığı olarak raporlanır. Bootstrap sonrası performans tahmini ve haritadaki her nokta için $\varepsilon$'nin %95 bandı da (tüm bootstrap modelleriyle hesaplanan dağılımdan) verilir. Bootstrap ölçüm saçılımını doğrudan içerdiğinden ayrı bir birleştirme yapılmaz.
+**2) Parametre güven aralıkları (bootstrap).** *3 · Sonuç → Model katsayıları ve güven aralığı → Σ Güven aralığını hesapla*: fit'e dahil noktalar yerine koyarak $B$ kez (varsayılan 100) yeniden örneklenir, her örnek için Wilson fit'i (önceki çözümün çevresinde hızlı yerel arama ile) tekrarlanır. $C_1, n_1, C_2, n_2$ için 2.5–97.5 yüzdelik aralıkları %95 güven aralığı olarak raporlanır. Bootstrap sonrası performans tahmini ve haritadaki her nokta için $\varepsilon$'nin %95 bandı da (tüm bootstrap modelleriyle hesaplanan dağılımdan) verilir. Bootstrap ölçüm saçılımını doğrudan içerdiğinden ayrı bir birleştirme yapılmaz.
 
 ## Test Matrisi Önerisi (D-optimal)
 
-*Veri & Eşleme → Manuel Test Girişi → Önerilen Sonraki Test Noktaları*: mevcut fit'e göre, parametre vektörü $\boldsymbol\theta = [\ln C_1,\, n_1,\, \ln C_2,\, n_2]$ ve yanıt $y=\ln(1/UA)$ için duyarlılık (Jacobian) $J$ sayısal hesaplanır. Bilgi matrisi $M = \sum J^\mathsf{T} J$ olmak üzere, aday ızgaradan (harita debi aralığı, 12×12) her adımda
+*1 · Veri → ✍️ Elle giriş → Sıradaki noktayı nerede ölçmeliyim? → 💡 Öner* (veya Sonuç ekranındaki "Önerilen noktalar" bağlantısı): mevcut fit'e göre, parametre vektörü $\boldsymbol\theta = [\ln C_1,\, n_1,\, \ln C_2,\, n_2]$ ve yanıt $y=\ln(1/UA)$ için duyarlılık (Jacobian) $J$ sayısal hesaplanır. Bilgi matrisi $M = \sum J^\mathsf{T} J$ olmak üzere, aday ızgaradan (harita debi aralığı, 12×12) her adımda
 
 $$\max_{c}\; \ln\det\!\left(M + J_c^\mathsf{T} J_c\right)$$
 
@@ -306,13 +313,13 @@ olan nokta seçilir (açgözlü D-optimal tasarım). Mevcut noktalara %5'ten yak
 
 ## Zaman Serisinden Kararlı Rejim Tespiti
 
-*Veri & Eşleme → Zaman Serisinden Kararlı Rejim Tespiti*: veri kaydedici dosyası (CSV/Excel) yüklenir. Zaman sütunu adından algılanır (`Time`, `t [s]`, `Zaman`, tarih-saat metni de olabilir); yoksa sabit örnekleme aralığı kullanılır.
+*1 · Veri → 📈 Kayıt cihazından*: veri kaydedici dosyası (CSV/Excel) yüklenir. Zaman sütunu adından algılanır (`Time`, `t [s]`, `Zaman`, tarih-saat metni de olabilir); yoksa sabit örnekleme aralığı kullanılır.
 
 - **Ölçüt sinyalleri:** varsayılan olarak eşleme tablosundaki debi ve sıcaklık sütunları (yoksa adı debi/sıcaklık gibi olanlar) seçilir. Sıcaklıklar mutlak tolerans (varsayılan 0.2 K), diğerleri göreli tolerans (varsayılan %1) ile değerlendirilir.
 - **Kayan pencere** $W$ (varsayılan 60 s): her $t_i$ için $[t_i-W,\,t_i]$ penceresinde her sinyalin standart sapması $\sigma \le \text{tol}$ **ve** doğrusal eğim kaynaklı değişim $\vert \text{eğim}\vert\cdot W \le \text{tol}$ ise o an kararlıdır (önek toplamlarıyla $O(N)$).
 - Ardışık kararlı anlar birleştirilir; süresi *min. kararlı süre*'den kısa olanlar atılır. Geçiş bölgelerinin ortalamaya sızmaması için her bölgenin iki ucundan *kenar kırpma* (varsayılan %10) kadar kısım çıkarılır.
 - Her bölge için tüm sayısal sütunların ortalaması bir test noktası olur (`SS01`, `SS02`…; `t_start`, `t_end`, `n_samples` ile). Grafikte kararlı bölgeler yeşil, ortalaması alınan kısım çerçeveli gösterilir.
-- **＋ Noktaları Veri Setine Ekle** ile mevcut veri setine eklenir (veri seti yoksa yeni veri seti oluşturulur ve otomatik eşleme yapılır).
+- **＋ Bulunan noktaları ekle** ile mevcut veri setine eklenir (veri seti yoksa yeni veri seti oluşturulur ve otomatik eşleme yapılır).
 
 ## Performans Tahmin Motoru (Rating)
 
@@ -327,7 +334,7 @@ Girdiler test aralığının ±%10 dışına çıkarsa **ekstrapolasyon** uyarı
 
 ## Performans Haritası ve Dışa Aktarma
 
-*Performans Haritası* sekmesi, analiz sonucundaki modelle bir debi ızgarasında tüm performans büyüklüklerini hesaplar.
+*4 · Çıktılar → 🗺️ Performans haritası*, analiz sonucundaki modelle bir debi ızgarasında tüm performans büyüklüklerini hesaplar.
 
 **Aralık:** $\dot m_1$ ve $\dot m_2$ için min / max / adım sayısı ve birim; giriş sıcaklıkları için bir veya birden çok seviye (virgülle, ör. `60, 80, 100`). Her $T_{1,in}\times T_{2,in}$ kombinasyonu ayrı bir harita seviyesidir. **Boş bırakılan her alan akıllı aralıkla doldurulur:**
 
@@ -338,7 +345,7 @@ Girdiler test aralığının ±%10 dışına çıkarsa **ekstrapolasyon** uyarı
 | Adım sayısı | 13 (1D modda sabit debi tek değer → eğri haritası) |
 | Sıcaklıklar | Test verisinin ortalama giriş sıcaklıkları |
 
-**✨ Akıllı Aralık** düğmesi bu değerleri forma yazar; sonra düzenleyebilirsiniz.
+**Aralığı özelleştir → ✨ Otomatik değerleri yaz** düğmesi bu değerleri forma yazar; sonra düzenleyebilirsiniz.
 
 **Her ızgara noktasında:** $\varepsilon$, $Q$, $T_{1,out}$, $T_{2,out}$, $\Delta P_1$, $\Delta P_2$, NTU, UA, $C_r$, $h_1$, $h_2$, $\eta_o$, Re (boyutsuz modelde), bootstrap yapıldıysa $\varepsilon$ %95 alt/üst sınırları ve **ekstrapolasyon bayrağı**. Test edilen bölge, fit'e dahil noktaların $(\ln\dot m_1, \ln\dot m_2)$ düzlemindeki **dışbükey zarfı**dır (1D modda değişken debi aralığı); zarf dışındaki noktalar `extrapolated = 1` olarak işaretlenir ve grafikte gri × ile gösterilir.
 
@@ -375,13 +382,13 @@ $$R^2 = 1 - \frac{\sum (y_i - \hat y_i)^2}{\sum (y_i - \bar y)^2}, \quad \text{R
 
 ## Proje Dosyası ve Otomatik Taslak
 
-- **💾 Proje Kaydet:** Ham veri, eşleme, birimler, akışkan/geometri, ayarlar, rating girdileri, rapor bilgileri ve kütüphane tek bir `.json` dosyasına yazılır.
-- **📂 Proje Yükle:** Kaydedilen dosyayı geri yükler ve analizi yeniden çalıştırır.
-- **Otomatik taslak:** Her değişiklik tarayıcının `localStorage` alanına (`hexeffectiveness_draft_v1`) yazılır; sayfa yeniden açıldığında otomatik geri yüklenir. **⟲ Sıfırla** taslağı siler.
+- **📁 Proje → 💾 Projeyi kaydet:** Ham veri, eşleme, birimler, akışkan/geometri, ayarlar, rating girdileri, rapor bilgileri ve kütüphane tek bir `.json` dosyasına yazılır.
+- **📁 Proje → 📂 Proje aç:** Kaydedilen dosyayı geri yükler ve analizi yeniden çalıştırır.
+- **Otomatik taslak:** Her değişiklik tarayıcının `localStorage` alanına (`hexeffectiveness_draft_v1`) yazılır; sayfa yeniden açıldığında otomatik geri yüklenir. **📁 Proje → ⟲ Her şeyi sıfırla** taslağı siler.
 
 ## Demo Test Verisi
 
-**▶ Demo Veriyi Yükle** / **⬇ Demo CSV İndir** düğmeleri, bilinen parametrelerle üretilmiş sentetik bir su (taraf 1) / hava (taraf 2) radyatör testi oluşturur:
+**▶ Demo ile dene** düğmesi ve **📁 Proje → Demo verisini CSV indir**, bilinen parametrelerle üretilmiş sentetik bir su (taraf 1) / hava (taraf 2) radyatör testi oluşturur:
 
 - Gerçek parametreler: $C_1 = 6000$, $n_1 = 0.55$, $C_2 = 115$, $n_2 = 0.50$, $R_w = 10^{-5}$ K/W; $\Delta P_1 = 12000\,\dot m_1^{1.8}$, $\Delta P_2 = 180\,\dot m_2^{1.9}$ Pa.
 - Geometri: $A_1 = 0.8$ m², $A_2 = 4.5$ m², alüminyum kanatçıklar.
@@ -407,4 +414,4 @@ Gürültü nedeniyle su tarafı parametreleri (toplam direncin ~%15'i) gerçek d
 Bu proje üzerinde AI destekli geliştirme yapılırken şu kurallar geçerlidir:
 
 1. **İstem kontrolü:** Mesaj en başta `CODE` kelimesiyle başlamıyorsa kod üretilmez; yalnızca teorik, teknik veya operasyonel sorular yanıtlanır. Mesaj `CODE` ile başlıyorsa istenen değişiklikler mevcut kod yapısına entegre edilerek güncellenir.
-2. **README ↔ Yardım senkronizasyonu:** Uygulamanın Yardım sekmesi bu dosyayı canlı olarak gösterir. Teori, formül veya kullanım değişiklikleri **yalnızca bu README'de** yapılır; arayüzde ayrı bir yardım metni tutulmaz.
+2. **README ↔ Yardım senkronizasyonu:** Uygulamanın Yardım paneli bu dosyayı canlı olarak gösterir. Teori, formül veya kullanım değişiklikleri **yalnızca bu README'de** yapılır; arayüzde ayrı bir yardım metni tutulmaz.
