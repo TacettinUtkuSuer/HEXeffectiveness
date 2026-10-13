@@ -33,414 +33,621 @@
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml.js" async></script>
 </head>
 <body>
+<!-- ============================ ÜST ÇUBUK ============================ -->
 <header class="topbar">
   <div class="brand">
     <span class="logo">⇄</span>
     <div>
       <h1>HEXeffectiveness</h1>
-      <small>Çapraz Akışlı Plate-Fin Eşanjör · ε-NTU · Wilson Plot · ΔP</small>
+      <small>Plate-fin eşanjör test analizi</small>
     </div>
   </div>
   <div class="top-actions">
-    <button class="btn" id="btnDemoLoad" title="Sentetik demo test verisini yükle ve eşle">▶ Demo Veriyi Yükle</button>
-    <button class="btn ghost" id="btnDemoDownload" title="Demo test verisini CSV olarak indir">⬇ Demo CSV İndir</button>
-    <button class="btn ghost" id="btnProjSave" title="Projeyi JSON olarak kaydet">💾 Proje Kaydet</button>
-    <label class="btn ghost" title="Kaydedilmiş proje JSON dosyasını yükle">📂 Proje Yükle<input type="file" id="fileProject" accept=".json,application/json" hidden></label>
+    <button class="btn accent" id="btnDemoLoad" title="Hazır örnek veriyle tüm akışı 30 saniyede görün">▶ Demo ile dene</button>
+    <details class="menu">
+      <summary class="btn ghost">📁 Proje ▾</summary>
+      <div class="menu-list">
+        <button id="btnProjSave">💾 Projeyi kaydet (.json)</button>
+        <label>📂 Proje aç…<input type="file" id="fileProject" accept=".json,application/json" hidden></label>
+        <button id="btnDemoDownload">⬇ Demo verisini CSV indir</button>
+        <hr>
+        <button id="btnReset" class="danger">⟲ Her şeyi sıfırla</button>
+      </div>
+    </details>
+    <button class="btn ghost" id="btnOpenLibrary" title="Akışkan ve malzeme kütüphanesi">📚 Kütüphane</button>
+    <button class="btn ghost" id="btnOpenHelp" title="Yöntem, formüller ve kullanım kılavuzu">❓ Yardım</button>
     <button class="btn ghost theme-btn" id="btnTheme" title="Koyu temaya geç (dark mode)">🌙</button>
-    <button class="btn ghost danger" id="btnReset" title="Taslağı ve tüm verileri temizle">⟲ Sıfırla</button>
   </div>
 </header>
 
-<nav class="tabs" id="tabs">
-  <button data-tab="data" class="active">1 · Veri &amp; Eşleme</button>
-  <button data-tab="setup">2 · Akışkan &amp; Geometri</button>
-  <button data-tab="library">3 · Kütüphane</button>
-  <button data-tab="analysis">4 · Analiz</button>
-  <button data-tab="rating">5 · Performans Tahmini</button>
-  <button data-tab="map">6 · Performans Haritası</button>
-  <button data-tab="report">7 · Rapor</button>
-  <button data-tab="help">❓ Yardım / Dokümantasyon</button>
+<!-- ============================ ADIM ÇUBUĞU ============================ -->
+<nav class="stepper" id="stepper" aria-label="Adımlar">
+  <button data-step="data"><span class="num">1</span><span class="txt"><b>Veri</b><small id="stData">Veri ekleyin</small></span></button>
+  <span class="sep">›</span>
+  <button data-step="hex"><span class="num">2</span><span class="txt"><b>Eşanjör</b><small id="stHex">Akışkanları seçin</small></span></button>
+  <span class="sep">›</span>
+  <button data-step="result"><span class="num">3</span><span class="txt"><b>Sonuç</b><small id="stResult">Bekliyor</small></span></button>
+  <span class="sep">›</span>
+  <button data-step="out"><span class="num">4</span><span class="txt"><b>Çıktılar</b><small id="stOut">Tahmin · Harita · Rapor</small></span></button>
 </nav>
 
 <main>
-  <!-- ============================ 1. VERİ ============================ -->
-  <section class="tab-panel active" id="tab-data">
-    <div class="grid two">
-      <div class="card">
-        <h2>Test Verisi Yükle</h2>
-        <p class="muted">CSV, TXT veya Excel (.xlsx/.xls) dosyası. Sütun sırası serbesttir; aşağıda eşleme yapılır.</p>
-        <label class="dropzone" id="dropzone">
-          <input type="file" id="fileData" accept=".csv,.txt,.xlsx,.xls" hidden>
-          <span>Dosyayı buraya sürükleyin veya <u>tıklayıp seçin</u></span>
-        </label>
-        <div id="dataInfo" class="muted small"></div>
+  <!-- =============================== 1. VERİ =============================== -->
+  <section class="step" id="step-data">
+    <div class="step-head">
+      <div>
+        <h2>1 · Test verinizi ekleyin</h2>
+        <p class="muted">Ölçtüğünüz debi ve sıcaklıkları üç yoldan birisiyle getirebilirsiniz.</p>
       </div>
-      <div class="card">
-        <h2>Sütun Eşleme &amp; Birimler</h2>
-        <p class="muted">Her fiziksel büyüklüğü bir sütuna bağlayın ve birimini seçin. İç hesaplar SI biriminde yapılır.</p>
-        <table class="tbl map-tbl">
-          <thead><tr><th>Büyüklük</th><th>Sütun</th><th>Birim</th></tr></thead>
-          <tbody id="mapBody"></tbody>
-        </table>
-        <div class="row gap">
-          <button class="btn" id="btnAutoMap">Otomatik Eşle</button>
-          <button class="btn primary" id="btnGoAnalyze">Analize Geç →</button>
+    </div>
+
+    <div class="welcome" id="welcome">
+      <div>
+        <b>İlk kez mi kullanıyorsunuz?</b> Örnek bir su/hava radyatör testiyle bütün akışı 30 saniyede görün.
+      </div>
+      <button class="btn accent" data-action="demo">▶ Demo ile dene</button>
+    </div>
+
+    <div class="source-tabs" id="srcTabs" role="tablist">
+      <button data-src="file" role="tab"><span class="ico">📄</span><b>Dosyadan</b><small>CSV veya Excel test tablosu</small></button>
+      <button data-src="manual" role="tab"><span class="ico">✍️</span><b>Elle giriş</b><small>Test sırasında nokta nokta</small></button>
+      <button data-src="series" role="tab"><span class="ico">📈</span><b>Kayıt cihazından</b><small>Zaman serisinden kararlı noktaları bul</small></button>
+    </div>
+
+    <!-- 1a. Dosya -->
+    <div class="src-panel" id="src-file">
+      <div class="grid two">
+        <div class="card">
+          <h3>Dosyayı yükleyin</h3>
+          <label class="dropzone" id="dropzone">
+            <input type="file" id="fileData" accept=".csv,.txt,.xlsx,.xls" hidden>
+            <span><span class="big-ico">⬆</span><br>Dosyayı buraya sürükleyin veya <u>seçin</u><br><small class="muted">CSV, TXT, XLSX — sütun sırası önemli değil</small></span>
+          </label>
+          <div id="dataInfo" class="muted small"></div>
+        </div>
+        <div class="card">
+          <div class="row between">
+            <h3>Sütunları eşleyin <span id="mapStatus" class="badge"></span></h3>
+            <button class="btn sm ghost" id="btnAutoMap" title="Başlık adlarından tekrar tahmin et">↻ Otomatik eşle</button>
+          </div>
+          <p class="muted small">Hangi sütunun ne olduğunu ve birimini seçin. <span class="req">*</span> zorunlu. Çıkış sıcaklıklarından en az biri (veya ε) gerekir.</p>
+          <table class="tbl map-tbl">
+            <tbody id="mapBody"></tbody>
+          </table>
         </div>
       </div>
     </div>
-    <div class="card" id="manualCard">
-      <div class="row between">
-        <h2>Manuel Test Girişi (nokta nokta)</h2>
-        <div class="row gap">
-          <label class="chk"><input type="checkbox" data-bind="manualAutoRun"> Her eklemede analizi yeniden çalıştır</label>
-          <button class="btn ghost" id="btnManNew" title="Boş bir manuel veri seti başlat">＋ Boş Veri Seti</button>
-          <button class="btn ghost" id="btnManExport" title="Mevcut veri setini CSV olarak indir">⬇ CSV Dışa Aktar</button>
-        </div>
-      </div>
-      <p class="muted small">Test sırasında her kararlı rejim noktasını buradan girin. Değerler seçilen birimlerle yorumlanır (birimler yukarıdaki eşleme tablosuyla ortaktır). Nokta mevcut veri setine (CSV veya manuel) eklenir; boş bir veri setiyle başlamak için <b>＋ Boş Veri Seti</b>. <kbd>Enter</kbd> = Nokta Ekle. Giriş sıcaklıkları ekleme sonrası korunur.</p>
-      <div class="grid manual-grid" id="manualForm"></div>
-      <div class="row gap" style="margin-top:8px">
-        <button class="btn primary" id="btnManAdd">＋ Nokta Ekle</button>
-        <button class="btn ghost" id="btnManCancel" style="display:none">Düzenlemeyi İptal Et</button>
-      </div>
-      <div id="manualPreview"></div>
-      <div class="subcard">
+
+    <!-- 1b. Elle giriş -->
+    <div class="src-panel" id="src-manual">
+      <div class="card" id="manualCard">
         <div class="row between">
-          <h3>Önerilen Sonraki Test Noktaları (D-optimal)</h3>
+          <h3>Yeni test noktası</h3>
           <div class="row gap">
-            <label>Öneri sayısı <input type="number" min="1" max="12" value="5" id="sugK" style="width:70px"></label>
-            <button class="btn" id="btnSuggest">⚙ Öner</button>
+            <label class="chk small"><input type="checkbox" data-bind="manualAutoRun"> Her noktada analizi güncelle</label>
+            <button class="btn sm ghost" id="btnManNew" title="Mevcut veriyi kapatıp boş bir test başlat">＋ Yeni boş test</button>
           </div>
         </div>
-        <p class="muted small">Mevcut fit'e göre, parametre (C₁, n₁, C₂, n₂) belirsizliğini en çok azaltacak debi kombinasyonları seçilir. Aday aralık: Performans Haritası sekmesindeki debi aralığı (boşsa test aralığının ×0.8–×1.2'si).</p>
-        <div id="suggestOut"></div>
+        <p class="muted small">Rejim oturduğunda değerleri girin; anlık kontrol aşağıda görünür. <kbd>Enter</kbd> ile ekleyin. Giriş sıcaklıkları sonraki nokta için korunur.</p>
+        <div class="grid manual-grid" id="manualForm"></div>
+        <div class="row gap" style="margin-top:8px">
+          <button class="btn primary" id="btnManAdd">＋ Nokta Ekle</button>
+          <button class="btn ghost" id="btnManCancel" style="display:none">Düzenlemeyi iptal et</button>
+        </div>
+        <div id="manualPreview"></div>
+      </div>
+      <div class="card">
+        <div class="row between">
+          <h3>Sıradaki noktayı nerede ölçmeliyim? <span class="tip" tabindex="0" data-tip="Mevcut ölçümlere göre, modelin bilinmeyenlerini en çok netleştirecek debi kombinasyonları önerilir (D-optimal tasarım). En az 3 nokta ve bir analiz gerekir.">?</span></h3>
+          <div class="row gap">
+            <label class="small">Öneri sayısı <input type="number" min="1" max="12" value="5" id="sugK" style="width:64px;display:inline-block"></label>
+            <button class="btn" id="btnSuggest">💡 Öner</button>
+          </div>
+        </div>
+        <div id="suggestOut"><p class="muted small">En az 3 nokta ekledikten sonra öneri alabilirsiniz.</p></div>
       </div>
     </div>
-    <div class="card" id="steadyCard">
-      <h2>Zaman Serisinden Kararlı Rejim Tespiti</h2>
-      <p class="muted small">Veri kaydedici (data logger) dosyası yükleyin (CSV/Excel; bir zaman sütunu + sinyaller). Kayan pencerede her seçili sinyalin standart sapması ve eğimi tolerans içindeyse rejim kararlı sayılır; kararlı bölgelerin ortalamaları test noktası olarak eklenir.</p>
-      <div class="grid manual-grid">
-        <label class="btn ghost" style="margin-top:18px">⬆ Zaman Serisi Yükle<input type="file" id="fileSeries" accept=".csv,.txt,.xlsx,.xls" hidden></label>
-        <label>Zaman sütunu <select id="ssTime"></select></label>
-        <label>Örnekleme aralığı (zaman sütunu yoksa) [s] <input type="number" step="any" min="0" data-bind="steady.dt"></label>
-        <label>Pencere [s] <input type="number" step="any" min="1" data-bind="steady.window"></label>
-        <label>Min. kararlı süre [s] <input type="number" step="any" min="1" data-bind="steady.minDur"></label>
-        <label>Sıcaklık toleransı [K] <input type="number" step="any" min="0" data-bind="steady.tolT"></label>
-        <label>Diğer sinyaller toleransı [%] <input type="number" step="any" min="0" data-bind="steady.tolRel"></label>
-        <label>Kenar kırpma (her iki uç) [%] <input type="number" step="any" min="0" max="40" data-bind="steady.trim"></label>
+
+    <!-- 1c. Zaman serisi -->
+    <div class="src-panel" id="src-series">
+      <div class="card" id="steadyCard">
+        <h3>Kayıt dosyasından kararlı bölgeleri bulun</h3>
+        <p class="muted small">Veri kaydedici dosyasını yükleyin (bir zaman sütunu + ölçüm sütunları). Sinyallerin oturduğu bölgeler otomatik bulunur ve her birinin ortalaması bir test noktası olur.</p>
+        <div class="row gap">
+          <label class="btn primary">⬆ Kayıt dosyası seç<input type="file" id="fileSeries" accept=".csv,.txt,.xlsx,.xls" hidden></label>
+          <label>Zaman sütunu <select id="ssTime"></select></label>
+        </div>
+        <div id="ssSignals" class="small"></div>
+        <details class="advanced">
+          <summary>Kararlılık ölçütleri <span class="muted small">— varsayılanlar çoğu test için uygundur</span></summary>
+          <div class="grid manual-grid">
+            <label>Pencere [s] <span class="tip" tabindex="0" data-tip="Bu süre boyunca sinyaller sabit kalırsa rejim kararlı sayılır.">?</span><input type="number" step="any" min="1" data-bind="steady.window"></label>
+            <label>En kısa kararlı süre [s] <input type="number" step="any" min="1" data-bind="steady.minDur"></label>
+            <label>Sıcaklık toleransı [K] <input type="number" step="any" min="0" data-bind="steady.tolT"></label>
+            <label>Diğer sinyaller toleransı [%] <input type="number" step="any" min="0" data-bind="steady.tolRel"></label>
+            <label>Kenar kırpma [%] <span class="tip" tabindex="0" data-tip="Geçişlerin ortalamaya karışmaması için her kararlı bölgenin iki ucundan bu kadar atılır.">?</span><input type="number" step="any" min="0" max="40" data-bind="steady.trim"></label>
+            <label>Örnekleme aralığı [s] <span class="tip" tabindex="0" data-tip="Dosyada zaman sütunu yoksa kullanılır.">?</span><input type="number" step="any" min="0" data-bind="steady.dt"></label>
+          </div>
+        </details>
+        <div class="row gap" style="margin-top:10px">
+          <button class="btn primary" id="btnSteady">🔍 Kararlı bölgeleri bul</button>
+          <button class="btn" id="btnSteadyAdd" disabled>＋ Bulunan noktaları ekle</button>
+        </div>
+        <div id="ssOut"></div>
+        <div id="plotSteady" class="plot" style="display:none"></div>
       </div>
-      <div id="ssSignals" class="small"></div>
-      <div class="row gap" style="margin-top:8px">
-        <button class="btn primary" id="btnSteady">🔍 Kararlı Bölgeleri Bul</button>
-        <button class="btn" id="btnSteadyAdd" disabled>＋ Noktaları Veri Setine Ekle</button>
-      </div>
-      <div id="ssOut"></div>
-      <div id="plotSteady" class="plot" style="display:none"></div>
     </div>
-    <div class="card">
-      <h2>Veri Tablosu <span class="muted small" id="previewCount"></span></h2>
-      <p class="muted small">✎ ile bir noktayı manuel giriş formunda düzenleyebilir, ✕ ile silebilirsiniz.</p>
+
+    <!-- Ortak veri tablosu -->
+    <details class="card section" id="dataTableCard">
+      <summary><h3>Veri tablosu <span class="muted small" id="previewCount"></span></h3></summary>
+      <div class="row gap" style="margin:6px 0">
+        <span class="muted small">✎ düzenle (elle giriş formunda açılır) · ✕ sil</span>
+        <button class="btn sm ghost" id="btnManExport">⬇ CSV olarak indir</button>
+      </div>
       <div class="scroll-x"><table class="tbl small" id="previewTbl"></table></div>
+    </details>
+
+    <div class="step-foot">
+      <span id="dataHint" class="muted"></span>
+      <button class="btn primary lg" data-goto="hex" id="next1">Devam: Eşanjör →</button>
     </div>
   </section>
 
-  <!-- ============================ 2. KURULUM ============================ -->
-  <section class="tab-panel" id="tab-setup">
-    <div class="grid three">
+  <!-- =============================== 2. EŞANJÖR =============================== -->
+  <section class="step" id="step-hex">
+    <div class="step-head">
+      <div>
+        <h2>2 · Eşanjörü tanımlayın</h2>
+        <p class="muted">Çoğu durumda sadece akışkanları seçmeniz yeterli. Diğer her şeyin makul varsayılanı var.</p>
+      </div>
+    </div>
+
+    <div class="grid two">
       <div class="card side1">
-        <h2>Taraf 1 (Akışkan 1)</h2>
-        <label>Akışkan <select data-bind="fluid1" data-list="fluids"></select></label>
-        <label>Toplam ısı transfer alanı A₁ [m²] <input type="number" step="any" min="0" data-bind="geom.side1.A"></label>
-        <label class="chk"><input type="checkbox" data-bind="geom.side1.finsOn"> Kanatçık verimini hesaba kat (η<sub>o</sub>)</label>
-        <fieldset class="fins" data-fins="side1">
-          <label>Kanatçık alan oranı A<sub>f</sub>/A [-] <input type="number" step="any" min="0" max="1" data-bind="geom.side1.AfRatio"></label>
-          <label>Kanatçık boyu L<sub>f</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side1.Lf" data-scale="1000"></label>
-          <label>Kanatçık kalınlığı t<sub>f</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side1.tf" data-scale="1000"></label>
-          <label>Kanatçık malzemesi <select data-bind="geom.side1.material" data-list="solids"></select></label>
-          <div class="muted small">k<sub>m</sub> = <span data-kshow="side1"></span> W/(m·K)</div>
-        </fieldset>
-        <fieldset class="fins re-only">
-          <legend class="small muted">Re / Fanning modeli geometrisi</legend>
-          <label>Hidrolik çap D<sub>h1</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side1.Dh" data-scale="1000"></label>
-          <label>Serbest akış (min. kesit) alanı A<sub>c1</sub> [cm²] <input type="number" step="any" min="0" data-bind="geom.side1.Ac" data-scale="10000"></label>
-          <label>Akış yolu uzunluğu L<sub>1</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side1.Lflow" data-scale="1000"></label>
-        </fieldset>
+        <h3>Taraf 1 akışkanı <span class="side-info" id="sideInfo1"></span></h3>
+        <select data-bind="fluid1" data-list="fluids"></select>
+        <p class="muted small">Listede yoksa <a href="#" data-action="library">📚 Kütüphane</a>'den ekleyin (tablo dosyası da olur).</p>
       </div>
       <div class="card side2">
-        <h2>Taraf 2 (Akışkan 2)</h2>
-        <label>Akışkan <select data-bind="fluid2" data-list="fluids"></select></label>
-        <label>Toplam ısı transfer alanı A₂ [m²] <input type="number" step="any" min="0" data-bind="geom.side2.A"></label>
-        <label class="chk"><input type="checkbox" data-bind="geom.side2.finsOn"> Kanatçık verimini hesaba kat (η<sub>o</sub>)</label>
-        <fieldset class="fins" data-fins="side2">
-          <label>Kanatçık alan oranı A<sub>f</sub>/A [-] <input type="number" step="any" min="0" max="1" data-bind="geom.side2.AfRatio"></label>
-          <label>Kanatçık boyu L<sub>f</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side2.Lf" data-scale="1000"></label>
-          <label>Kanatçık kalınlığı t<sub>f</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side2.tf" data-scale="1000"></label>
-          <label>Kanatçık malzemesi <select data-bind="geom.side2.material" data-list="solids"></select></label>
-          <div class="muted small">k<sub>m</sub> = <span data-kshow="side2"></span> W/(m·K)</div>
-        </fieldset>
-        <fieldset class="fins re-only">
-          <legend class="small muted">Re / Fanning modeli geometrisi</legend>
-          <label>Hidrolik çap D<sub>h2</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side2.Dh" data-scale="1000"></label>
-          <label>Serbest akış (min. kesit) alanı A<sub>c2</sub> [cm²] <input type="number" step="any" min="0" data-bind="geom.side2.Ac" data-scale="10000"></label>
-          <label>Akış yolu uzunluğu L<sub>2</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side2.Lflow" data-scale="1000"></label>
-        </fieldset>
+        <h3>Taraf 2 akışkanı <span class="side-info" id="sideInfo2"></span></h3>
+        <select data-bind="fluid2" data-list="fluids"></select>
+        <p class="muted small">Eşlemedeki "Akışkan 1 / 2" sütunlarına karşılık gelir.</p>
       </div>
-      <div class="card">
-        <h2>Duvar &amp; Analiz Ayarları</h2>
-        <label>Isıl / hidrolik model
-          <select data-bind="settings.thermalModel">
-            <option value="mass">Kütle debisi: h = C·ṁ<sup>n</sup>, ΔP = K<sub>p</sub>·ṁ<sup>n<sub>p</sub></sup></option>
-            <option value="reynolds">Boyutsuz: Nu = C·Re<sup>n</sup>·Pr<sup>1/3</sup>, f = K<sub>f</sub>·Re<sup>−b</sup> (sıcaklık/akışkan duyarlı)</option>
-          </select>
-          <small class="muted">Viskozitesi sıcaklıkla çok değişen akışkanlarda (yağ, yakıt, glikol) ve farklı giriş sıcaklıklarına tahmin için boyutsuz model önerilir; D<sub>h</sub>, A<sub>c</sub>, L gerekir.</small>
+    </div>
+
+    <div class="card">
+      <h3>Sonuçları hangi koşullarda kullanacaksınız?</h3>
+      <div class="choice-row">
+        <label class="choice">
+          <input type="radio" name="tmodel" value="mass" data-bind="settings.thermalModel">
+          <span><b>Test ettiğim sıcaklıklar civarında</b><small>Basit model (h ∝ ṁⁿ). Ek bilgi gerekmez. Çoğu test için yeterli.</small></span>
         </label>
-        <label>Duvar ısıl direnci R<sub>w</sub> [K/W] <input type="number" step="any" min="0" data-bind="geom.Rw"></label>
-        <label>Isı dengesi eşiği [%] <input type="number" step="any" min="0" data-bind="settings.hbThreshold"></label>
-        <label class="chk"><input type="checkbox" data-bind="settings.excludeHB"> Eşiği aşan noktaları fit dışında tut</label>
-        <label>ε kaynağı
-          <select data-bind="settings.epsSource">
-            <option value="temps">Sıcaklıklardan (Q<sub>ort</sub>/Q<sub>max</sub>)</option>
-            <option value="column">Effectiveness sütunundan</option>
-          </select>
+        <label class="choice">
+          <input type="radio" name="tmodel" value="reynolds" data-bind="settings.thermalModel">
+          <span><b>Farklı sıcaklıklarda da</b><small>Viskozite/özellik değişimini hesaba katan boyutsuz model (Nu–Re–Pr). Yağ, yakıt, glikol için önerilir.</small></span>
         </label>
-        <label>Sabit debi eşiği (Varyasyon katsayısı) [%] <input type="number" step="any" min="0" data-bind="settings.cvThreshold"></label>
-        <div class="row gap">
-          <label>n<sub>min</sub> <input type="number" step="0.01" data-bind="settings.nMin"></label>
-          <label>n<sub>max</sub> <input type="number" step="0.01" data-bind="settings.nMax"></label>
+      </div>
+      <div class="re-box" id="reBox">
+        <p class="muted small">Boyutsuz model için kesit bilgisi gerekir. <b>Yaklaşık değerler yeterlidir</b> — tahmin sonuçlarını etkilemezler, sadece katsayıların literatürle kıyaslanabilirliğini etkilerler.</p>
+        <div class="grid two">
+          <fieldset class="re-only">
+            <legend>Taraf 1</legend>
+            <div class="grid three-tight">
+              <label>Hidrolik çap D<sub>h</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side1.Dh" data-scale="1000"></label>
+              <label>Akış kesiti A<sub>c</sub> [cm²] <input type="number" step="any" min="0" data-bind="geom.side1.Ac" data-scale="10000"></label>
+              <label>Akış boyu L [mm] <span class="tip" tabindex="0" data-tip="Basınç düşümü için. Boş bırakılırsa ΔP basit modelle (Kp·ṁⁿ) hesaplanır.">?</span><input type="number" step="any" min="0" data-bind="geom.side1.Lflow" data-scale="1000"></label>
+            </div>
+          </fieldset>
+          <fieldset class="re-only">
+            <legend>Taraf 2</legend>
+            <div class="grid three-tight">
+              <label>Hidrolik çap D<sub>h</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side2.Dh" data-scale="1000"></label>
+              <label>Akış kesiti A<sub>c</sub> [cm²] <input type="number" step="any" min="0" data-bind="geom.side2.Ac" data-scale="10000"></label>
+              <label>Akış boyu L [mm] <input type="number" step="any" min="0" data-bind="geom.side2.Lflow" data-scale="1000"></label>
+            </div>
+          </fieldset>
         </div>
-        <label>1D modda sabit tarafın varsayılan üssü n [-] <input type="number" step="0.01" data-bind="settings.assumedN"></label>
-        <div class="row gap">
-          <label>n<sub>p,min</sub> <input type="number" step="0.01" data-bind="settings.npMin"></label>
-          <label>n<sub>p,max</sub> <input type="number" step="0.01" data-bind="settings.npMax"></label>
-        </div>
-        <fieldset class="fins">
-          <legend class="small muted">Ölçüm belirsizliği (sensör doğruluğu, %95)</legend>
-          <label class="chk"><input type="checkbox" data-bind="settings.uncOn"> Nokta bazında belirsizlik yayılımı</label>
-          <div class="row gap">
-            <label>U<sub>T</sub> [K] <input type="number" step="any" min="0" data-bind="settings.uT"></label>
-            <label>U<sub>ṁ</sub> [%] <input type="number" step="any" min="0" data-bind="settings.uM"></label>
-            <label>U<sub>ΔP</sub> [%] <input type="number" step="any" min="0" data-bind="settings.uDP"></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Veri kalitesi</h3>
+      <label class="chk"><input type="checkbox" data-bind="settings.excludeHB"> Isı dengesi tutmayan noktaları otomatik dışarıda bırak
+        <span class="tip" tabindex="0" data-tip="İki taraftan hesaplanan ısı yükleri arasındaki fark eşiği aşarsa ölçüm şüphelidir (sensör, rejim oturmamış vb.).">?</span></label>
+      <label class="inline-label">Eşik: <input type="number" step="any" min="0" data-bind="settings.hbThreshold" class="w-sm"> %</label>
+    </div>
+
+    <details class="card advanced" id="advCard">
+      <summary><h3>⚙ Gelişmiş ayarlar <span class="muted small">— isteğe bağlı, bilmiyorsanız dokunmayın</span></h3></summary>
+
+      <h4>Isı transfer alanı ve kanatçıklar</h4>
+      <p class="muted small">Gerçek alan ve kanatçık ölçülerini biliyorsanız kanatçık verimini açın. Kapalıyken kanatçık etkisi katsayıların içinde kalır; sonuçlar yine doğrudur.</p>
+      <div class="grid two">
+        <fieldset>
+          <legend>Taraf 1</legend>
+          <label>Toplam ısı transfer alanı A₁ [m²] <span class="tip" tabindex="0" data-tip="Bilinmiyorsa 1 bırakın; tahminleri etkilemez (kanatçık verimi kapalıyken).">?</span><input type="number" step="any" min="0" data-bind="geom.side1.A"></label>
+          <label class="chk"><input type="checkbox" data-bind="geom.side1.finsOn"> Kanatçık verimini hesapla</label>
+          <div class="fins" data-fins="side1">
+            <label>Kanatçık alanı / toplam alan [-] <input type="number" step="any" min="0" max="1" data-bind="geom.side1.AfRatio"></label>
+            <label>Kanatçık boyu L<sub>f</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side1.Lf" data-scale="1000"></label>
+            <label>Kanatçık kalınlığı t<sub>f</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side1.tf" data-scale="1000"></label>
+            <label>Malzeme (k = <span data-kshow="side1"></span> W/m·K) <select data-bind="geom.side1.material" data-list="solids"></select></label>
           </div>
-          <label>Bootstrap örnek sayısı <input type="number" step="10" min="20" max="1000" data-bind="settings.nBoot"></label>
         </fieldset>
-        <p class="muted small">Alan değerleri bilinmiyorsa A = 1 m² ve kanatçık verimi kapalı bırakılabilir; bu durumda C katsayıları doğrudan (hA) korelasyonu olarak yorumlanır.</p>
+        <fieldset>
+          <legend>Taraf 2</legend>
+          <label>Toplam ısı transfer alanı A₂ [m²] <input type="number" step="any" min="0" data-bind="geom.side2.A"></label>
+          <label class="chk"><input type="checkbox" data-bind="geom.side2.finsOn"> Kanatçık verimini hesapla</label>
+          <div class="fins" data-fins="side2">
+            <label>Kanatçık alanı / toplam alan [-] <input type="number" step="any" min="0" max="1" data-bind="geom.side2.AfRatio"></label>
+            <label>Kanatçık boyu L<sub>f</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side2.Lf" data-scale="1000"></label>
+            <label>Kanatçık kalınlığı t<sub>f</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side2.tf" data-scale="1000"></label>
+            <label>Malzeme (k = <span data-kshow="side2"></span> W/m·K) <select data-bind="geom.side2.material" data-list="solids"></select></label>
+          </div>
+        </fieldset>
       </div>
+
+      <div class="grid three">
+        <div>
+          <h4>Duvar</h4>
+          <label>Duvar ısıl direnci R<sub>w</sub> [K/W] <span class="tip" tabindex="0" data-tip="İnce metal plakalarda ihmal edilebilir (0).">?</span><input type="number" step="any" min="0" data-bind="geom.Rw"></label>
+          <h4>Etkinlik kaynağı</h4>
+          <select data-bind="settings.epsSource">
+            <option value="temps">Sıcaklıklardan hesapla (önerilen)</option>
+            <option value="column">Dosyadaki ε sütununu kullan</option>
+          </select>
+        </div>
+        <div>
+          <h4>Sensör doğrulukları (%95)</h4>
+          <label class="chk"><input type="checkbox" data-bind="settings.uncOn"> Ölçüm belirsizliğini hesapla</label>
+          <label>Sıcaklık ±[K] <input type="number" step="any" min="0" data-bind="settings.uT"></label>
+          <label>Debi ±[%] <input type="number" step="any" min="0" data-bind="settings.uM"></label>
+          <label>Basınç farkı ±[%] <input type="number" step="any" min="0" data-bind="settings.uDP"></label>
+        </div>
+        <div>
+          <h4>Fit sınırları</h4>
+          <div class="row gap">
+            <label>n min <input type="number" step="0.01" data-bind="settings.nMin" class="w-sm"></label>
+            <label>n max <input type="number" step="0.01" data-bind="settings.nMax" class="w-sm"></label>
+          </div>
+          <div class="row gap">
+            <label>n<sub>p</sub> min <input type="number" step="0.01" data-bind="settings.npMin" class="w-sm"></label>
+            <label>n<sub>p</sub> max <input type="number" step="0.01" data-bind="settings.npMax" class="w-sm"></label>
+          </div>
+          <label>Sabit debi eşiği (CV) [%] <span class="tip" tabindex="0" data-tip="Bir debinin değişimi bunun altındaysa 'sabit' sayılır ve 1D analiz yapılır.">?</span><input type="number" step="any" min="0" data-bind="settings.cvThreshold"></label>
+          <label>1D modda sabit tarafın üssü <input type="number" step="0.01" data-bind="settings.assumedN"></label>
+          <label>Bootstrap örnek sayısı <input type="number" step="10" min="20" max="1000" data-bind="settings.nBoot"></label>
+        </div>
+      </div>
+    </details>
+
+    <div class="step-foot">
+      <button class="btn ghost" data-goto="data">← Veri</button>
+      <span class="muted" id="hexHint"></span>
+      <button class="btn primary lg" data-goto="result" id="next2">Analiz et →</button>
     </div>
   </section>
 
-  <!-- ============================ 3. KÜTÜPHANE ============================ -->
-  <section class="tab-panel" id="tab-library">
-    <div class="card">
-      <div class="row between">
-        <h2>Akışkan Kütüphanesi</h2>
-        <div class="row gap">
-          <label class="btn ghost" title="Fluid_Name, Cp_Eq, Density_Eq, Viscosity_Eq, k_Eq (opsiyonel: T_Unit)">⬆ Akışkan CSV Yükle<input type="file" id="fileFluidCsv" accept=".csv,.txt" hidden></label>
-          <button class="btn ghost" id="btnFluidCsvTemplate">CSV Şablonu</button>
-          <button class="btn primary" id="btnLibDownload">⬇ Kütüphaneyi İndir (materials_db.json)</button>
-          <button class="btn ghost danger" id="btnLibReset">Repo Varsayılanına Dön</button>
-        </div>
+  <!-- =============================== 3. SONUÇ =============================== -->
+  <section class="step" id="step-result">
+    <div class="step-head">
+      <div>
+        <h2>3 · Sonuç</h2>
+        <p class="muted">Modelin test verinizi ne kadar iyi açıkladığı ve dikkat edilmesi gerekenler.</p>
       </div>
-      <div class="subcard">
-        <h3>Özellik Tablosundan Akışkan Ekle</h3>
-        <p class="muted small">Sıcaklığa karşı ölçülmüş/tablo özellik dosyası yükleyin (bir veya birden çok CSV). Beklenen başlıklar: <code>T [°C], ρ [kg/m³], cp [J/kg·K], μ [Pa·s], k [W/m·K]</code> — sütun sırası serbest; <code>K</code>/<code>°F</code>, <code>kJ/kg·K</code>, <code>mPa·s</code>/<code>cP</code> birimleri otomatik çevrilir. Akışkan adı dosya adından alınır (örn. <code>JP8.csv</code> → JP8).</p>
-        <div class="row gap">
-          <label>Model
-            <select id="tblMode">
-              <option value="table">Tablo + enterpolasyon (önerilen)</option>
-              <option value="equation">Polinom / ifadeye dönüştür</option>
-            </select>
-          </label>
-          <label class="btn primary" style="margin-top:18px">⬆ Özellik Tablosu Yükle<input type="file" id="fileTable" accept=".csv,.txt" multiple hidden></label>
-        </div>
-        <p class="muted small">Tablo modunda ρ, c<sub>p</sub>, k doğrusal; μ ise ln(μ) üzerinden enterpole edilir (viskozite sıcaklıkla üstel değiştiği için). Dönüştürme modunda c<sub>p</sub>, ρ, k → 3. derece polinom, μ → exp(3. derece polinom); tablo verisi yine saklanır ve model sonradan değiştirilebilir.</p>
-        <div id="tblImportOut"></div>
-      </div>
-      <p class="muted small">Denklem formatı: katsayı listesi <code>a0; a1; a2; a3</code> → c(T) = a0 + a1·T + a2·T² + a3·T³, veya T değişkenli ifade, örn. <code>exp(-6.33 - 0.0326*T + 2.1e-4*T^2)</code>. Desteklenen fonksiyonlar: exp, ln, log10, sqrt, pow, abs, tanh. Birimler: c<sub>p</sub> [J/(kg·K)], ρ [kg/m³], μ [Pa·s], k [W/(m·K)].</p>
-      <div class="scroll-x"><table class="tbl small" id="fluidTbl"></table></div>
-      <h3>Akışkan Ekle / Düzenle</h3>
-      <div class="grid form-grid">
-        <label>Fluid_Name <input type="text" id="fName" placeholder="örn. Propylene Glycol 40%"></label>
-        <label>T birimi <select id="fTunit"><option value="C">°C</option><option value="K">K</option></select></label>
-        <label>Model kaynağı
-          <select id="fSource"><option value="equation">Denklem (*_Eq)</option><option value="table" disabled>Tablo + enterpolasyon</option></select>
-          <small class="muted" id="fTableInfo">Bu akışkanın tablo verisi yok (yalnızca denklem).</small>
-        </label>
-        <div></div>
-        <label>Cp_Eq <input type="text" id="fCp" placeholder="4213.9; -2.154; 0.03635; -1.48e-4"></label>
-        <label>Density_Eq <input type="text" id="fRho"></label>
-        <label>Viscosity_Eq <input type="text" id="fMu"></label>
-        <label>k_Eq <input type="text" id="fK"></label>
-      </div>
-      <div class="row gap">
-        <button class="btn ghost" id="btnFluidNew">Yeni (formu temizle)</button>
-        <button class="btn" id="btnFluidTest">Test Et / Grafiği Çiz</button>
-        <button class="btn primary" id="btnFluidSave">Kaydet / Güncelle</button>
-      </div>
-      <div id="fluidTestOut" class="small"></div>
-      <div id="plotProps" class="plot tall"></div>
+      <button class="btn ghost" id="btnRun" title="Analizi yeniden çalıştır">↻ Yeniden hesapla</button>
     </div>
-    <div class="card">
-      <h2>Katı Malzemeler (Kanatçık / Duvar)</h2>
-      <div class="scroll-x"><table class="tbl small" id="solidTbl"></table></div>
-      <div class="row gap">
-        <input type="text" id="sName" placeholder="Malzeme adı">
-        <input type="number" step="any" id="sK" placeholder="k [W/(m·K)]">
-        <button class="btn primary" id="btnSolidSave">Ekle / Güncelle</button>
-      </div>
-    </div>
-  </section>
 
-  <!-- ============================ 4. ANALİZ ============================ -->
-  <section class="tab-panel" id="tab-analysis">
-    <div class="card">
-      <div class="row between">
-        <h2>Analiz</h2>
-        <div class="row gap">
-          <button class="btn" id="btnBoot" title="Fit parametreleri ve tahminler için %95 güven aralığı (yeniden örnekleme)">Σ Güven Aralığı (Bootstrap)</button>
-          <button class="btn primary" id="btnRun">▶ Analizi Çalıştır</button>
+    <div id="resultEmpty" class="empty">
+      <div class="big-ico">📊</div>
+      <p>Henüz sonuç yok. Önce en az 3 test noktası ekleyin.</p>
+      <button class="btn primary" data-goto="data">Veri adımına git</button>
+    </div>
+
+    <div id="resultBody">
+      <div id="verdict"></div>
+      <div id="keyStats" class="grid kpis"></div>
+
+      <div class="grid two">
+        <div class="card">
+          <h3>Ölçüm ↔ model <span class="tip" tabindex="0" data-tip="Her nokta bir test. Noktalar çapraz çizgi üzerindeyse model ölçümü doğru açıklıyor. Kesikli çizgiler ±%5 bandı.">?</span></h3>
+          <div id="plotParity" class="plot"></div>
+        </div>
+        <div class="card">
+          <h3>Etkinlik – debi <span class="tip" tabindex="0" data-tip="Çizgiler modelin tahmini, noktalar ölçüm. Her renk diğer debinin bir seviyesi.">?</span></h3>
+          <div id="plotCurves" class="plot"></div>
         </div>
       </div>
-      <div id="bootStatus"></div>
-      <div id="analysisMsg"></div>
-      <div id="fitSummary" class="grid kpis"></div>
-    </div>
-    <div class="grid two">
-      <div class="card"><h3>Isı Dengesi Hatası</h3><div id="plotHB" class="plot"></div></div>
-      <div class="card"><h3>Parity Plot — ε</h3><div id="plotParity" class="plot"></div></div>
-    </div>
-    <div class="card"><h3 id="surfTitle">ε Yüzeyi (Model + Ölçüm)</h3><div id="plotSurface" class="plot tall"></div></div>
-    <div class="grid two">
-      <div class="card"><h3>ε – Debi Eğrileri</h3><div id="plotCurves" class="plot"></div></div>
-      <div class="card"><h3>Wilson Plot (Isıl Direnç Ayrıştırma)</h3><div id="plotWilson" class="plot"></div></div>
-    </div>
-    <div class="grid two">
-      <div class="card"><h3>Basınç Düşümü ΔP = K<sub>p</sub>·ṁ<sup>n<sub>p</sub></sup></h3><div id="plotDP" class="plot"></div></div>
-      <div class="card"><h3>Parity Plot — ΔP</h3><div id="plotParityDP" class="plot"></div></div>
-    </div>
-    <div class="card">
-      <h3>Test Noktaları <span class="muted small">(kutucuk = fit'e dahil; manuel olarak çıkarabilirsiniz)</span></h3>
-      <div class="scroll-x"><table class="tbl small" id="ptsTbl"></table></div>
-    </div>
-  </section>
 
-  <!-- ============================ 5. RATING ============================ -->
-  <section class="tab-panel" id="tab-rating">
-    <div class="grid two">
-      <div class="card">
-        <h2>Performans Tahmin Motoru</h2>
-        <p class="muted small">Analizde elde edilen fiziksel parametrelerle (C₁, n₁, C₂, n₂, R<sub>w</sub>, K<sub>p</sub>, n<sub>p</sub>) yeni çalışma noktası hesaplanır.</p>
-        <div class="grid form-grid">
-          <label>ṁ₁ <input type="number" step="any" data-bind="rating.m1"></label>
-          <label>Birim <select data-bind="rating.flowUnit1" data-units="flow"></select></label>
-          <label>ṁ₂ <input type="number" step="any" data-bind="rating.m2"></label>
-          <label>Birim <select data-bind="rating.flowUnit2" data-units="flow"></select></label>
-          <label>T₁,giriş <input type="number" step="any" data-bind="rating.T1in"></label>
-          <label>T₂,giriş <input type="number" step="any" data-bind="rating.T2in"></label>
-          <label>Sıcaklık birimi <select data-bind="rating.tempUnit" data-units="temp"></select></label>
-          <label>ΔP birimi <select data-bind="rating.dpUnit" data-units="dp"></select></label>
-        </div>
-        <button class="btn primary" id="btnRate">Hesapla</button>
-        <div id="rateOut" class="grid kpis"></div>
-        <div id="rateWarn"></div>
-      </div>
-      <div class="card">
-        <h3>Debi Taraması (diğer debi sabit)</h3>
-        <label>Taranacak debi <select id="sweepVar"><option value="m1">ṁ₁</option><option value="m2">ṁ₂</option></select></label>
-        <div id="plotSweep" class="plot"></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============================ 6. HARİTA ============================ -->
-  <section class="tab-panel" id="tab-map">
-    <div class="grid two">
-      <div class="card">
+      <details class="card section">
+        <summary><h3>📐 Model katsayıları ve güven aralığı</h3></summary>
         <div class="row between">
-          <h2>Performans Haritası (ε, Q, ΔP)</h2>
-          <button class="btn ghost" id="btnMapSmart" title="Test verisine göre akıllı aralığı doldur">✨ Akıllı Aralık</button>
+          <p class="muted small">Isı taşınım ve basınç düşümü korelasyonlarının katsayıları. <b>Güven aralığı</b> düğmesi, verinin saçılımından katsayıların ne kadar kesin olduğunu hesaplar.</p>
+          <button class="btn" id="btnBoot">Σ Güven aralığını hesapla</button>
         </div>
-        <p class="muted small">Boş bırakılan alanlar otomatik doldurulur: debi aralığı test aralığının ×0.8–×1.2'si (oran > 4 ise logaritmik), sıcaklıklar test ortalaması. Birden çok giriş sıcaklığı için virgülle ayırın (örn. <code>60, 80, 100</code>) — her kombinasyon ayrı bir harita seviyesidir.</p>
-        <div class="grid form-grid">
-          <label>ṁ₁ min <input type="text" data-bind="pmap.m1min" placeholder="otomatik"></label>
-          <label>ṁ₁ max <input type="text" data-bind="pmap.m1max" placeholder="otomatik"></label>
-          <label>ṁ₁ adım sayısı <input type="number" min="1" max="200" data-bind="pmap.m1n"></label>
-          <label>ṁ₁ birimi <select data-bind="pmap.flowUnit1" data-units="flow"></select></label>
-          <label>ṁ₂ min <input type="text" data-bind="pmap.m2min" placeholder="otomatik"></label>
-          <label>ṁ₂ max <input type="text" data-bind="pmap.m2max" placeholder="otomatik"></label>
-          <label>ṁ₂ adım sayısı <input type="number" min="1" max="200" data-bind="pmap.m2n"></label>
-          <label>ṁ₂ birimi <select data-bind="pmap.flowUnit2" data-units="flow"></select></label>
-          <label>T₁,giriş seviyeleri <input type="text" data-bind="pmap.T1list" placeholder="otomatik (test ortalaması)"></label>
-          <label>T₂,giriş seviyeleri <input type="text" data-bind="pmap.T2list" placeholder="otomatik (test ortalaması)"></label>
-          <label>Sıcaklık birimi <select data-bind="pmap.tempUnit" data-units="temp"></select></label>
-          <label>Aralık dağılımı
-            <select data-bind="pmap.spacing"><option value="auto">Otomatik</option><option value="lin">Doğrusal</option><option value="log">Logaritmik</option></select>
-          </label>
-          <label>ΔP birimi (dışa aktarma/grafik) <select data-bind="pmap.dpUnit" data-units="dp"></select></label>
+        <div id="bootStatus"></div>
+        <div id="fitSummary" class="grid kpis"></div>
+      </details>
+      <details class="card section">
+        <summary><h3>🌡️ Isı dengesi kontrolü</h3></summary>
+        <div id="plotHB" class="plot"></div>
+      </details>
+      <details class="card section">
+        <summary><h3 id="surfTitle">🧊 3B etkinlik yüzeyi</h3></summary>
+        <div id="plotSurface" class="plot tall"></div>
+      </details>
+      <details class="card section">
+        <summary><h3>📈 Wilson grafiği (ısıl direnç ayrıştırma)</h3></summary>
+        <div id="plotWilson" class="plot"></div>
+      </details>
+      <details class="card section">
+        <summary><h3>💨 Basınç düşümü</h3></summary>
+        <div class="grid two">
+          <div id="plotDP" class="plot"></div>
+          <div id="plotParityDP" class="plot"></div>
         </div>
-        <button class="btn primary" id="btnMap">▦ Haritayı Oluştur</button>
-        <div id="mapMsg"></div>
-      </div>
-      <div class="card">
-        <h2>Dışa Aktar</h2>
-        <p class="muted small">Tüm seviyeler dahil. Debiler seçilen birimde, sıcaklıklar seçilen birimde, ΔP seçilen birimde; ekstrapolasyon bayrağı = test edilen bölgenin (dışbükey zarf) dışı.</p>
-        <div class="grid form-grid">
-          <button class="btn" id="btnMapCsvLong">⬇ Uzun CSV (tüm büyüklükler)</button>
-          <button class="btn" id="btnMapXlsx">⬇ Excel (.xlsx, sayfa başına matris)</button>
-          <button class="btn" id="btnMapCsvMatrix">⬇ Matris CSV (seçili büyüklük &amp; seviye)</button>
-          <button class="btn" id="btnMapJson">⬇ JSON (ızgara + model)</button>
-        </div>
-        <div class="row gap">
-          <label>Büyüklük
-            <select data-bind="pmap.qty" id="mapQty">
-              <option value="eps">ε — etkinlik</option><option value="Q">Q — ısı yükü [kW]</option>
-              <option value="dp1">ΔP₁</option><option value="dp2">ΔP₂</option>
-              <option value="T1out">T₁,çıkış</option><option value="T2out">T₂,çıkış</option>
-              <option value="UA">UA [W/K]</option><option value="U_eps">U(ε) %95 (bootstrap)</option>
-            </select>
-          </label>
-          <label>Seviye <select id="mapLevel"></select></label>
-        </div>
-        <div id="mapInfo" class="small muted"></div>
-      </div>
+      </details>
+      <details class="card section" id="ptsCard">
+        <summary><h3>📋 Test noktaları (dahil et / çıkar)</h3></summary>
+        <p class="muted small">Kutucuğu kaldırarak bir noktayı analiz dışında bırakabilirsiniz.</p>
+        <div class="scroll-x"><table class="tbl small" id="ptsTbl"></table></div>
+      </details>
+      <details class="card section">
+        <summary><h3>🔎 Teknik ayrıntılar ve tüm uyarılar</h3></summary>
+        <div id="analysisMsg"></div>
+      </details>
     </div>
-    <div class="card"><h3 id="mapTitle">Harita</h3><div id="plotMap" class="plot tall"></div></div>
-  </section>
 
-  <!-- ============================ 7. RAPOR ============================ -->
-  <section class="tab-panel" id="tab-report">
-    <div class="grid two">
-      <div class="card">
-        <h2>Mühendislik Raporu (PDF)</h2>
-        <label>Proje adı <input type="text" data-bind="meta.project"></label>
-        <label>Eşanjör / Numune <input type="text" data-bind="meta.unit"></label>
-        <label>Hazırlayan <input type="text" data-bind="meta.engineer"></label>
-        <label>Notlar <textarea rows="4" data-bind="meta.notes"></textarea></label>
-        <label class="chk"><input type="checkbox" data-bind="meta.includeTable"> Nokta tablosunu rapora ekle</label>
-        <button class="btn primary" id="btnPdf">⬇ PDF Raporu İndir</button>
-        <span id="pdfStatus" class="muted small"></span>
-      </div>
-      <div class="card">
-        <h2>Proje Dosyası &amp; Taslak</h2>
-        <p>Tüm veri, eşleme, birim, geometri, ayarlar ve kütüphane tek bir <code>.json</code> proje dosyasına kaydedilir. Ayrıca her değişiklik tarayıcınızın <code>localStorage</code> alanına otomatik taslak olarak yazılır.</p>
-        <div class="row gap">
-          <button class="btn" id="btnProjSave2">💾 Proje Kaydet</button>
-          <label class="btn ghost">📂 Proje Yükle<input type="file" id="fileProject2" accept=".json,application/json" hidden></label>
-        </div>
-        <p class="muted small" id="draftInfo"></p>
-      </div>
+    <div class="step-foot">
+      <button class="btn ghost" data-goto="hex">← Eşanjör</button>
+      <span></span>
+      <button class="btn primary lg" data-goto="out" id="next3">Devam: Çıktılar →</button>
     </div>
   </section>
 
-  <!-- ============================ 7. YARDIM ============================ -->
-  <section class="tab-panel" id="tab-help">
-    <div class="card markdown-body" id="helpContent"><p class="muted">README.md yükleniyor…</p></div>
+  <!-- =============================== 4. ÇIKTILAR =============================== -->
+  <section class="step" id="step-out">
+    <div class="step-head">
+      <div>
+        <h2>4 · Sonuçları kullanın</h2>
+        <p class="muted">Yeni bir çalışma noktası hesaplayın, performans haritası çıkarın veya rapor alın.</p>
+      </div>
+    </div>
+
+    <div id="outEmpty" class="empty">
+      <div class="big-ico">🧮</div>
+      <p>Çıktılar için önce analiz gerekli.</p>
+      <button class="btn primary" data-goto="data">Veri adımına git</button>
+    </div>
+
+    <div id="outBody">
+      <div class="segmented" id="outTabs" role="tablist">
+        <button data-out="rating">🎯 Tek nokta tahmini</button>
+        <button data-out="map">🗺️ Performans haritası</button>
+        <button data-out="report">📄 Rapor ve proje</button>
+      </div>
+
+      <!-- 4a. Tek nokta -->
+      <div class="out-panel" id="out-rating">
+        <div class="grid two">
+          <div class="card">
+            <h3>Çalışma noktası</h3>
+            <div class="grid form-grid">
+              <label>Taraf 1 debisi <span class="inline"><input type="number" step="any" data-bind="rating.m1"><select data-bind="rating.flowUnit1" data-units="flow"></select></span></label>
+              <label>Taraf 2 debisi <span class="inline"><input type="number" step="any" data-bind="rating.m2"><select data-bind="rating.flowUnit2" data-units="flow"></select></span></label>
+              <label>Taraf 1 giriş sıcaklığı <span class="inline"><input type="number" step="any" data-bind="rating.T1in"><select data-bind="rating.tempUnit" data-units="temp"></select></span></label>
+              <label>Taraf 2 giriş sıcaklığı <input type="number" step="any" data-bind="rating.T2in"></label>
+            </div>
+            <div class="row gap">
+              <button class="btn primary" id="btnRate">Hesapla</button>
+              <button class="btn ghost sm" id="btnRateFill" title="Test ortalamasıyla doldur">↺ Test ortalaması</button>
+              <label class="small">ΔP birimi <select data-bind="rating.dpUnit" data-units="dp" style="display:inline-block;width:auto"></select></label>
+            </div>
+            <div id="rateOut" class="grid kpis"></div>
+            <div id="rateWarn"></div>
+          </div>
+          <div class="card">
+            <div class="row between">
+              <h3>Debi değişirse ne olur?</h3>
+              <label class="small">Değişen: <select id="sweepVar" style="display:inline-block;width:auto"><option value="m1">Taraf 1 debisi</option><option value="m2">Taraf 2 debisi</option></select></label>
+            </div>
+            <div id="plotSweep" class="plot"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4b. Harita -->
+      <div class="out-panel" id="out-map">
+        <div class="card">
+          <div class="row between">
+            <div>
+              <h3 id="mapTitle">Performans haritası</h3>
+              <div id="mapRangeInfo" class="muted small"></div>
+            </div>
+            <div class="row gap">
+              <label class="small">Gösterilen <select data-bind="pmap.qty" id="mapQty" style="display:inline-block;width:auto">
+                <option value="eps">Etkinlik ε</option><option value="Q">Isı yükü Q [kW]</option>
+                <option value="dp1">ΔP taraf 1</option><option value="dp2">ΔP taraf 2</option>
+                <option value="T1out">Çıkış sıcaklığı 1</option><option value="T2out">Çıkış sıcaklığı 2</option>
+                <option value="UA">UA [W/K]</option><option value="U_eps">ε belirsizliği (%95)</option>
+              </select></label>
+              <label class="small">Sıcaklık seviyesi <select id="mapLevel" style="display:inline-block;width:auto"></select></label>
+            </div>
+          </div>
+          <div id="mapMsg"></div>
+          <div id="plotMap" class="plot tall"></div>
+          <p class="muted small"><b>○</b> test noktaları · kesikli çizgi test edilen bölge · <b>×</b> test bölgesi dışı (ekstrapolasyon)</p>
+        </div>
+        <div class="grid two top">
+          <details class="card section" id="mapRangeCard">
+            <summary><h3>Aralığı özelleştir <span class="muted small">— boş alanlar otomatik</span></h3></summary>
+            <p class="muted small">Boş bırakılan her alan test verisinden doldurulur: debiler test aralığının ×0.8–×1.2'si, sıcaklık test ortalaması. Birden çok giriş sıcaklığı için virgülle ayırın (örn. <code>60, 80, 100</code>).</p>
+            <div class="grid form-grid">
+              <label>Taraf 1 debisi min <input type="text" data-bind="pmap.m1min" placeholder="otomatik"></label>
+              <label>max <input type="text" data-bind="pmap.m1max" placeholder="otomatik"></label>
+              <label>Adım sayısı <input type="number" min="1" max="200" data-bind="pmap.m1n"></label>
+              <label>Birim <select data-bind="pmap.flowUnit1" data-units="flow"></select></label>
+              <label>Taraf 2 debisi min <input type="text" data-bind="pmap.m2min" placeholder="otomatik"></label>
+              <label>max <input type="text" data-bind="pmap.m2max" placeholder="otomatik"></label>
+              <label>Adım sayısı <input type="number" min="1" max="200" data-bind="pmap.m2n"></label>
+              <label>Birim <select data-bind="pmap.flowUnit2" data-units="flow"></select></label>
+              <label>Taraf 1 giriş sıcaklık(lar)ı <input type="text" data-bind="pmap.T1list" placeholder="otomatik"></label>
+              <label>Taraf 2 giriş sıcaklık(lar)ı <input type="text" data-bind="pmap.T2list" placeholder="otomatik"></label>
+              <label>Sıcaklık birimi <select data-bind="pmap.tempUnit" data-units="temp"></select></label>
+              <label>Dağılım <select data-bind="pmap.spacing"><option value="auto">Otomatik</option><option value="lin">Doğrusal</option><option value="log">Logaritmik</option></select></label>
+            </div>
+            <div class="row gap">
+              <button class="btn ghost" id="btnMapSmart">✨ Otomatik değerleri yaz</button>
+              <button class="btn primary" id="btnMap">▦ Haritayı yeniden oluştur</button>
+            </div>
+          </details>
+          <div class="card">
+            <h3>Haritayı indir</h3>
+            <div class="export-grid">
+              <button class="export" id="btnMapXlsx"><b>📗 Excel</b><small>Her büyüklük ayrı sayfada tablo + bilgi sayfası</small></button>
+              <button class="export" id="btnMapCsvMatrix"><b>▦ Tablo CSV</b><small>Gösterilen büyüklük; simülasyon lookup tablosu</small></button>
+              <button class="export" id="btnMapCsvLong"><b>📄 Liste CSV</b><small>Her satır bir nokta, tüm büyüklükler</small></button>
+              <button class="export" id="btnMapJson"><b>{ } JSON</b><small>Izgara + model parametreleri</small></button>
+            </div>
+            <label class="small">ΔP birimi <select data-bind="pmap.dpUnit" data-units="dp" style="display:inline-block;width:auto"></select></label>
+            <div id="mapInfo" class="small muted"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4c. Rapor -->
+      <div class="out-panel" id="out-report">
+        <div class="grid two">
+          <div class="card">
+            <h3>📄 PDF mühendislik raporu</h3>
+            <label>Proje adı <input type="text" data-bind="meta.project"></label>
+            <label>Eşanjör / numune <input type="text" data-bind="meta.unit"></label>
+            <label>Hazırlayan <input type="text" data-bind="meta.engineer"></label>
+            <label>Notlar <textarea rows="3" data-bind="meta.notes"></textarea></label>
+            <label class="chk"><input type="checkbox" data-bind="meta.includeTable"> Nokta tablosunu ekle</label>
+            <button class="btn primary lg" id="btnPdf">⬇ PDF indir</button>
+            <span id="pdfStatus" class="muted small"></span>
+          </div>
+          <div class="card">
+            <h3>💾 Proje dosyası</h3>
+            <p class="muted">Veri, ayarlar ve kütüphane tek bir <code>.json</code> dosyasına kaydedilir; daha sonra aynen açabilirsiniz. Ayrıca çalışmanız tarayıcıda otomatik saklanır.</p>
+            <div class="row gap">
+              <button class="btn" id="btnProjSave2">💾 Projeyi kaydet</button>
+              <label class="btn ghost">📂 Proje aç<input type="file" id="fileProject2" accept=".json,application/json" hidden></label>
+            </div>
+            <p class="muted small" id="draftInfo"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-foot">
+      <button class="btn ghost" data-goto="result">← Sonuç</button>
+      <span></span>
+      <span></span>
+    </div>
   </section>
 </main>
 
+<!-- ============================ YAN PANELLER ============================ -->
+<div class="backdrop" id="backdrop"></div>
+
+<aside class="drawer" id="drawer-library" aria-label="Kütüphane">
+  <div class="drawer-head">
+    <h2>📚 Akışkan ve malzeme kütüphanesi</h2>
+    <button class="btn ghost" data-close>✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="card">
+      <h3>Tablo dosyasından akışkan ekle <span class="badge eq">en kolay yol</span></h3>
+      <p class="muted small">Sıcaklığa karşı özellik tablosu yükleyin. Başlıklar: <code>T [°C], ρ [kg/m³], cp [J/kg·K], μ [Pa·s], k [W/m·K]</code> (sıra serbest; K, °F, kJ, mPa·s, cP otomatik çevrilir). Akışkan adı dosya adından alınır.</p>
+      <div class="row gap">
+        <label class="btn primary">⬆ Tablo dosyası seç<input type="file" id="fileTable" accept=".csv,.txt" multiple hidden></label>
+        <label class="small">Model
+          <select id="tblMode" style="display:inline-block;width:auto">
+            <option value="table">Tablodan enterpolasyon (önerilen)</option>
+            <option value="equation">Polinoma dönüştür</option>
+          </select>
+        </label>
+      </div>
+      <div id="tblImportOut"></div>
+    </div>
+
+    <div class="card">
+      <div class="row between">
+        <h3>Akışkanlar</h3>
+        <button class="btn sm ghost" id="btnFluidNew">＋ Yeni akışkan</button>
+      </div>
+      <div class="scroll-x"><table class="tbl small" id="fluidTbl"></table></div>
+    </div>
+
+    <details class="card section" id="fluidEditCard">
+      <summary><h3>Akışkanı düzenle / denklemle ekle</h3></summary>
+      <p class="muted small">Denklem: katsayılar <code>a0; a1; a2; a3</code> (c = a0 + a1·T + a2·T² + a3·T³) veya ifade, örn. <code>exp(-6.33 - 0.0326*T)</code>. Birimler: c<sub>p</sub> J/(kg·K), ρ kg/m³, μ Pa·s, k W/(m·K).</p>
+      <div class="grid form-grid">
+        <label>Ad <input type="text" id="fName" placeholder="örn. Propylene Glycol 40%"></label>
+        <label>Sıcaklık birimi <select id="fTunit"><option value="C">°C</option><option value="K">K</option></select></label>
+        <label>Model
+          <select id="fSource"><option value="equation">Denklem</option><option value="table" disabled>Tablodan enterpolasyon</option></select>
+          <small class="muted" id="fTableInfo"></small>
+        </label>
+        <div></div>
+        <label>c<sub>p</sub> <input type="text" id="fCp" placeholder="4213.9; -2.154; 0.03635; -1.48e-4"></label>
+        <label>Yoğunluk ρ <input type="text" id="fRho"></label>
+        <label>Viskozite μ <input type="text" id="fMu"></label>
+        <label>Isıl iletkenlik k <input type="text" id="fK"></label>
+      </div>
+      <div class="row gap">
+        <button class="btn" id="btnFluidTest">Grafiği çiz</button>
+        <button class="btn primary" id="btnFluidSave">Kaydet</button>
+      </div>
+      <div id="fluidTestOut" class="small"></div>
+      <div id="plotProps" class="plot tall"></div>
+    </details>
+
+    <details class="card section">
+      <summary><h3>Katı malzemeler (kanatçık)</h3></summary>
+      <div class="scroll-x"><table class="tbl small" id="solidTbl"></table></div>
+      <div class="row gap">
+        <input type="text" id="sName" placeholder="Malzeme adı" style="width:auto">
+        <input type="number" step="any" id="sK" placeholder="k [W/(m·K)]" style="width:140px">
+        <button class="btn primary" id="btnSolidSave">Ekle / güncelle</button>
+      </div>
+    </details>
+
+    <details class="card section">
+      <summary><h3>Kütüphaneyi kalıcı yap / içe aktar</h3></summary>
+      <p class="muted small">Eklediğiniz akışkanlar bu tarayıcıda saklanır. Herkesin görmesi için kütüphaneyi indirip depodaki <code>materials_db.json</code> yerine koyun.</p>
+      <div class="row gap">
+        <button class="btn primary" id="btnLibDownload">⬇ materials_db.json indir</button>
+        <label class="btn ghost" title="Fluid_Name, Cp_Eq, Density_Eq, Viscosity_Eq, k_Eq (opsiyonel: T_Unit)">⬆ Denklem CSV yükle<input type="file" id="fileFluidCsv" accept=".csv,.txt" hidden></label>
+        <button class="btn ghost" id="btnFluidCsvTemplate">CSV şablonu</button>
+        <button class="btn ghost danger" id="btnLibReset">Varsayılana dön</button>
+      </div>
+    </details>
+  </div>
+</aside>
+
+<aside class="drawer wide" id="drawer-help" aria-label="Yardım">
+  <div class="drawer-head">
+    <h2>❓ Yardım ve yöntem</h2>
+    <button class="btn ghost" data-close>✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="markdown-body" id="helpContent"><p class="muted">README.md yükleniyor…</p></div>
+  </div>
+</aside>
+
 <div id="toast" class="toast"></div>
-<footer class="foot">HEXeffectiveness · istemci tarafında çalışır, verileriniz tarayıcıdan çıkmaz · <a href="./README.md" target="_blank">README.md</a></footer>
+<footer class="foot">HEXeffectiveness · tarayıcıda çalışır, verileriniz bilgisayarınızdan çıkmaz · <a href="./README.md" target="_blank">README.md</a></footer>
 
 <script src="js/physics.js"></script>
-<script src="js/app.js"></script>
+<script src="js/core.js"></script>
+<script src="js/library.js"></script>
+<script src="js/data.js"></script>
+<script src="js/analysis.js"></script>
+<script src="js/outputs.js"></script>
+<script src="js/main.js"></script>
 </body>
 </html>
