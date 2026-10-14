@@ -34,6 +34,7 @@ function runAnalysis(silent) {
     if (!silent) toast('Analiz yapılamadı: ' + e.message, 5000);
   }
   renderResultVisibility();
+  updateArrCompare();
   if (!RESULT) $('#resultEmpty p').innerHTML = esc(lastError(msg)) || 'Analiz yapılamadı.';
   updateStepper();
 }
@@ -91,8 +92,29 @@ function renderVerdict() {
   ].join('');
 }
 
+// Seçili akış düzeninin, tek geçiş çapraz akış varsayımına göre UA üzerindeki etkisi
+function updateArrCompare() {
+  const box = $('#arrCompare'); if (!box) return;
+  const arr = S.settings.arr || {};
+  if (!RESULT) { box.innerHTML = arr.type && arr.type !== 'cross_uu' ? '<p class="muted small">Analizden sonra bu seçimin sonuçlarınıza etkisi burada gösterilir.</p>' : ''; return; }
+  const u = RESULT.pts.filter((p) => p.included && p.UA > 0);
+  if (!u.length) { box.innerHTML = ''; return; }
+  const NTU = H.mean(u.map((p) => p.NTU)), Cr = H.mean(u.map((p) => p.Cr));
+  const cs = (p) => (p.C1 <= p.C2 ? 1 : 2);
+  if (!arr.type || arr.type === 'cross_uu') {
+    const alt = { type: 'multipass', passes: 2, dir: 'counter' };
+    const r = H.mean(u.map((p) => H.ntuFromEps(p.eps_exp, p.Cr, alt, cs(p)) / p.NTU));
+    box.innerHTML = `<p class="muted small">Testlerinizin ortalamasında NTU ≈ ${fx(NTU, 2)}, C<sub>r</sub> ≈ ${fx(Cr, 2)}. Eşanjör aslında 2 geçişli çapraz-ters akış olsaydı UA yaklaşık <b>%${fx(Math.abs(r - 1) * 100, 1)}</b> farklı hesaplanırdı${Math.abs(r - 1) < 0.03 ? ' — bu koşullarda düzen seçimi sonucu az etkiliyor.' : ' — düzeni doğru seçmek önemli.'}</p>`;
+    return;
+  }
+  const r = H.mean(u.map((p) => H.ntuFromEps(p.eps_exp, p.Cr, { type: 'cross_uu' }, 1) / p.NTU));
+  const e1 = H.epsCrossflow(NTU, Cr), e2 = H.epsArr(NTU, Cr, arr, cs(u[0]));
+  box.innerHTML = `<div class="msg info">Testlerinizin ortalama koşulunda (NTU ≈ ${fx(NTU, 2)}, C<sub>r</sub> ≈ ${fx(Cr, 2)}) aynı UA ile <b>${esc(H.arrLabel(arr))}</b> ε = ${fx(e2, 3)}, tek geçiş çapraz akış ε = ${fx(e1, 3)} verir. Tek geçiş varsayılsaydı UA yaklaşık <b>%${fx(Math.abs(r - 1) * 100, 1)}</b> ${r > 1 ? 'fazla' : 'eksik'} hesaplanırdı.</div>`;
+}
+
 function renderAnalysis() {
   const R = RESULT; if (!R) return;
+  updateArrCompare();
   renderVerdict();
   const F = R.fit, st = R.stats;
   const msgs = [];

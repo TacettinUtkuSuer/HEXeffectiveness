@@ -125,6 +125,34 @@ Burada $C_r = C_{\min}/C_{\max}$ ve $\text{NTU} = UA / C_{\min}$'dir. $C_r \to 0
 
 **Ters çözüm:** Her test noktası için deneysel $\varepsilon$ ve $C_r$'den NTU, bağıntı NTU'ya göre monoton olduğundan **ikiye bölme (bisection)** yöntemiyle ($0 < \text{NTU} \le 50$, tolerans $10^{-12}$) bulunur ve $UA_{\text{deney}} = \text{NTU}\cdot C_{\min}$ hesaplanır. $\varepsilon \le 0$ veya bağıntının ulaşabileceği değerin üzerindeki noktalar "fiziksel olmayan" olarak işaretlenir.
 
+### 3b. Akış Düzeni: Çok Geçiş (Pass), Karışık Taraf, Ters/Paralel Akış
+
+Yukarıdaki bağıntı **tek geçişli** çapraz akış içindir. *2 · Eşanjör → Akış düzeni* kartından eşanjörünüzün düzeni seçilir; ölçülen $\varepsilon$'dan NTU (ve UA) hesabı ile tahmin/haritadaki $\varepsilon$ hesabı **aynı seçilen bağıntıyla** yapılır.
+
+| Düzen | Bağıntı |
+|---|---|
+| Tek geçiş çapraz, iki taraf karışmamış (varsayılan) | yukarıdaki $\varepsilon_{cf}(\text{NTU}, C_r)$ |
+| Tek geçiş çapraz, $C_{\max}$ karışık | $\varepsilon = \frac{1}{C_r}\left[1 - e^{-C_r\,(1-e^{-\text{NTU}})}\right]$ |
+| Tek geçiş çapraz, $C_{\min}$ karışık | $\varepsilon = 1 - \exp\!\left[-\frac{1}{C_r}\left(1-e^{-C_r\,\text{NTU}}\right)\right]$ |
+| Ters akış | $\varepsilon = \frac{1-e^{-\text{NTU}(1-C_r)}}{1-C_r\,e^{-\text{NTU}(1-C_r)}}$ ($C_r=1$: $\frac{\text{NTU}}{1+\text{NTU}}$) |
+| Paralel akış | $\varepsilon = \frac{1-e^{-\text{NTU}(1+C_r)}}{1+C_r}$ |
+
+Karışık tarafın $C_{\min}$ mi $C_{\max}$ mı olduğu her nokta için ayrıca belirlenir.
+
+**Çok geçişli (N pass) çapraz akış.** Bir taraf çekirdekten $N$ kez geçer, diğer taraf tek geçişle bütün geçiş bölgelerinden sırayla geçer. Her geçiş, $\text{NTU}/N$ ve aynı $C_r$ ile tek geçişli karışmamış çapraz akış birimi ($\varepsilon_p$) kabul edilir; geçiş dönüşlerinde akışkanın karıştığı (toplama haznesi / manifold) varsayılır. Genel düzen:
+
+$$\text{çapraz-ters:}\quad \varepsilon = \frac{\left(\frac{1-\varepsilon_p C_r}{1-\varepsilon_p}\right)^{N} - 1}{\left(\frac{1-\varepsilon_p C_r}{1-\varepsilon_p}\right)^{N} - C_r} \qquad \left(C_r = 1:\ \varepsilon = \frac{N\varepsilon_p}{1+(N-1)\varepsilon_p}\right)$$
+
+$$\text{çapraz-paralel:}\quad \varepsilon = \frac{1-\left[1-\varepsilon_p(1+C_r)\right]^{N}}{1+C_r}$$
+
+$N=1$'de tek geçişe, $N\to\infty$'da saf ters / paralel akışa yaklaşır. **Genel yön:** geçişli akışkan geçişten geçişe ilerlerken diğer akışkanın geliş yönüne karşı ilerliyorsa *ters*, aynı yönde ilerliyorsa *paralel*'dir (kartta seçime göre çizilen şema yardımcı olur).
+
+**Ters çözüm:** Çapraz-paralel düzende $\varepsilon(\text{NTU})$ monoton değildir (bir maksimumdan sonra düşer). Bu yüzden NTU, log ölçekli taramayla $\varepsilon$'un ilk aşıldığı aralık bulunup ikiye bölme ile çözülür; ölçülen $\varepsilon$ düzenin ulaşabileceği en yüksek değeri aşıyorsa nokta "fiziksel olmayan" işaretlenir.
+
+**Ne kadar etkiler?** Düzen seçimi en çok $C_r \approx 1$ ve yüksek NTU'da önemlidir (ör. $C_r=1$, NTU $=2$: tek geçiş $\varepsilon = 0.615$, 2 geçiş çapraz-ters $0.638$; tek geçiş varsayımı UA'yı ~%10 fazla verir). $C_r \to 0$'da (bir taraf çok baskın) düzen fark etmez. Kart, kendi test verinizin ortalama NTU ve $C_r$ değerinde seçimin UA'yı ne kadar değiştirdiğini gösterir. Test aralığındaki $\varepsilon$ tahminleri düzen yanlış seçilse bile büyük ölçüde doğru kalır (aynı bağıntı iki yönde kullanıldığından); asıl etkilenen UA, $h$, $C/n$ katsayıları ve test dışı ($C_r$ farklı) tahminlerdir.
+
+**Basınç düşümü:** Basit modelde ($K_p\dot m^{n_p}$) geçiş dönüş kayıpları katsayıya katılır. Boyutsuz (Fanning) modelde geçişli taraf için **akış boyu = toplam yol** (geçiş sayısı × tek geçiş boyu), **akış kesiti = tek geçişin kesiti** girilmelidir.
+
 ### 4. Wilson Plot ve Isıl Direnç Ayrıştırma Modeli
 
 Toplam ısıl direnç, iki taraf konveksiyon direnci ile duvar iletim direncinin seri toplamıdır:
@@ -402,7 +430,7 @@ Gürültü nedeniyle su tarafı parametreleri (toplam direncin ~%15'i) gerçek d
 
 ## Sınırlamalar ve İyi Uygulamalar
 
-- Bağıntı, **her iki akışkanın karışmadığı tek geçişli çapraz akış** içindir. Çok geçişli veya karışık akış düzenlerinde sonuçlar yaklaşık olur.
+- Varsayılan bağıntı **tek geçişli, iki tarafı karışmamış çapraz akış** içindir; eşanjörünüz çok geçişli, bir tarafı karışık, ters veya paralel akışlıysa *Akış düzeni* kartından seçin (bkz. 3b). Çok geçişte dönüşlerde karışma varsayılır; dönüşte karışmayan (kanal kanal dönen) düzenlerde gerçek $\varepsilon$ biraz daha yüksek olabilir.
 - Faz değişimi (yoğuşma/buharlaşma) ve nem transferi modellenmez; ıslak yüzey testlerinde duyulur ısı dengesi bozulur.
 - Wilson analizi için test matrisi her iki debiyi de geniş bir aralıkta (tercihen ≥ 3:1) değiştirmelidir.
 - Özellik polinomlarını geçerlilik aralığı dışında kullanmaktan kaçının.

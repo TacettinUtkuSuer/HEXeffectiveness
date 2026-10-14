@@ -196,7 +196,7 @@ function manualPreview() {
     if (RESULT) {
       const g = RESULT.geom;
       const um = H.modelUA(RESULT.fit, g, H.sideBasis(g.model, g.side1, f1, p.m1, p.T1m), H.sideBasis(g.model, g.side2, f2, p.m2, p.T2m));
-      const em = H.epsCrossflow(um.UA / p.Cmin, p.Cr);
+      const em = H.epsArr(um.UA / p.Cmin, p.Cr, S.settings.arr, p.C1 <= p.C2 ? 1 : 2);
       const d = (p.eps_exp - em) / em * 100;
       cards.push(k(Math.abs(d) > 5 ? 'bad' : 'g', 'Mevcut modele göre', fx(d, 2) + ' %', 'ε<sub>model</sub> = ' + fx(em, 4)));
     }

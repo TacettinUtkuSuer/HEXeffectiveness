@@ -206,6 +206,11 @@ function syncBindings() {
     box.classList.toggle('off', !on);
     $$('input, select', box).forEach((el) => { el.disabled = !on; });
   });
+  const at = (S.settings.arr || {}).type || 'cross_uu';
+  $('#arrMulti').style.display = at === 'multipass' ? '' : 'none';
+  $('#arrMixed').style.display = at === 'cross_mixed' ? '' : 'none';
+  if (at === 'multipass') $('#arrFig').innerHTML = multipassDiagram(S.settings.arr);
+  updateArrCompare();
   const re = S.settings.thermalModel === 'reynolds';
   $('#reBox').style.display = re ? '' : 'none';
   $$('.re-only').forEach((el) => { el.disabled = !re; });
@@ -229,7 +234,7 @@ function onBindChange(el) {
   else if (el.type === 'number') { v = el.value === '' ? NaN : +el.value; if (el.dataset.scale) v /= +el.dataset.scale; }
   else v = el.value;
   setPath(S, p, v);
-  if (/^geom\.side\d\.finsOn$/.test(p) || /material$/.test(p) || p === 'settings.thermalModel') syncBindings();
+  if (/^geom\.side\d\.finsOn$/.test(p) || /material$/.test(p) || p === 'settings.thermalModel' || p.startsWith('settings.arr')) syncBindings();
   saveDraft();
   if (p.startsWith('rating.')) { S.ui.ratingTouched = true; runRating(true); }
   else if (RESULT && /^(geom|settings|fluid)/.test(p) && p !== 'settings.nBoot') runAnalysis(true);

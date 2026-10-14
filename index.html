@@ -216,6 +216,33 @@
       </div>
     </div>
 
+    <div class="card" id="arrCard">
+      <h3>Akış düzeni <span class="tip" tabindex="0" data-tip="Ölçülen etkinlikten UA hesaplanırken kullanılan ε–NTU bağıntısını belirler. Plate-fin eşanjörlerin çoğu tek geçişli çapraz akıştır; pass (geçiş) varsa seçin.">?</span></h3>
+      <div class="arr-row">
+        <label class="choice arr"><input type="radio" name="arrType" value="cross_uu" data-bind="settings.arr.type"><span class="ico" data-arr-ico="cross_uu"></span><span><b>Tek geçiş çapraz akış</b><small>Standart plate-fin. Her iki taraf kanatçıklı (karışmamış).</small></span></label>
+        <label class="choice arr"><input type="radio" name="arrType" value="multipass" data-bind="settings.arr.type"><span class="ico" data-arr-ico="multipass"></span><span><b>Çok geçişli (pass)</b><small>Bir taraf çekirdekten birden çok kez geçiyor.</small></span></label>
+        <label class="choice arr"><input type="radio" name="arrType" value="cross_mixed" data-bind="settings.arr.type"><span class="ico" data-arr-ico="cross_mixed"></span><span><b>Çapraz, bir taraf karışık</b><small>Bir tarafta kanatçık yok / akış enine karışabiliyor.</small></span></label>
+        <label class="choice arr"><input type="radio" name="arrType" value="counter" data-bind="settings.arr.type"><span class="ico" data-arr-ico="counter"></span><span><b>Ters akış</b><small>Akışkanlar zıt yönde, paralel kanallarda.</small></span></label>
+        <label class="choice arr"><input type="radio" name="arrType" value="parallel" data-bind="settings.arr.type"><span class="ico" data-arr-ico="parallel"></span><span><b>Paralel akış</b><small>Akışkanlar aynı yönde.</small></span></label>
+      </div>
+      <div class="arr-opts" id="arrMulti">
+        <div class="grid three-tight">
+          <label>Geçiş (pass) sayısı
+            <select data-bind="settings.arr.passes"><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="8">8</option></select></label>
+          <label>Geçişli taraf
+            <select data-bind="settings.arr.passSide"><option value="1">Taraf 1</option><option value="2">Taraf 2</option></select></label>
+          <label>Genel yön <span class="tip" tabindex="0" data-tip="Geçişli akışkan, geçişten geçişe ilerlerken diğer akışkanın geliş yönüne karşı mı (ters), onunla aynı yönde mi (paralel) ilerliyor? Çoğu tasarım ters yöndedir.">?</span>
+            <select data-bind="settings.arr.dir"><option value="counter">Ters (çapraz-ters akış)</option><option value="parallel">Paralel (çapraz-paralel akış)</option></select></label>
+        </div>
+        <div class="geo-fig single"><div class="geo-svg" id="arrFig"></div></div>
+        <p class="muted small">Her geçiş, tek geçişli karışmamış çapraz akış birimi olarak; geçiş dönüşlerinde akışkanın karıştığı (toplama haznesi/manifold) varsayılarak hesaplanır. Basınç düşümü için boyutsuz modelde <b>akış boyu</b> olarak geçişli tarafın <b>toplam yolunu</b> (geçiş sayısı × tek geçiş boyu), <b>akış kesiti</b> olarak tek geçişin kesitini girin.</p>
+      </div>
+      <div class="arr-opts" id="arrMixed">
+        <label>Karışık taraf <select data-bind="settings.arr.mixedSide" style="display:inline-block;width:auto"><option value="1">Taraf 1</option><option value="2">Taraf 2</option></select></label>
+      </div>
+      <div id="arrCompare"></div>
+    </div>
+
     <div class="card">
       <h3>Sonuçları hangi koşullarda kullanacaksınız?</h3>
       <div class="choice-row">
