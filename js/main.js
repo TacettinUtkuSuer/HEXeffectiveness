@@ -431,6 +431,7 @@ function wire() {
  * ------------------------------------------------------------------ */
 async function init() {
   wire();
+  wireDiagrams();
   applyTheme(currentTheme(), false);
   loadHelp();
   LIB_REPO = await loadRepoLibrary();

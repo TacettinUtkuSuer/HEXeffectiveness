@@ -400,3 +400,47 @@ details.menu > summary::-webkit-details-marker { display: none; }
 }
 .rate-more { grid-column: 1 / -1; margin-top: 2px; }
 .rate-more > summary { color: var(--muted); }
+
+/* Geometri yönlendirme çizimleri */
+.geo-fig { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; align-items: center; margin: 8px 0 14px;
+  padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--card-2); }
+.geo-fig figcaption { font-size: 13px; color: var(--ink); }
+.geo-fig figcaption ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; }
+.geo-fig figcaption li { color: var(--muted); }
+.geo-fig figcaption li b { color: var(--ink); }
+.geo { width: 100%; height: auto; display: block; overflow: visible; }
+.geo .plate { fill: var(--muted); opacity: .55; }
+.geo .fin { fill: var(--accent); }
+.geo .prim { stroke: var(--side2); stroke-width: 4; stroke-linecap: round; }
+.geo .midline { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 4; }
+.geo .dim { stroke: var(--ink); stroke-width: 1.4; fill: none; }
+.geo .arrowhead { fill: var(--ink); }
+.geo .flowdot { fill: none; stroke: var(--muted); stroke-width: 1.2; }
+.geo .flowdot-c { fill: var(--muted); }
+.geo .ac { fill: var(--side2); fill-opacity: .22; }
+.geo .perim { fill: none; stroke: var(--ink); stroke-width: 1.4; stroke-dasharray: 5 4; }
+.geo .core { fill: var(--card); stroke: var(--ink); stroke-width: 1.5; }
+.geo .flow1 { stroke: var(--side1); stroke-width: 2.2; }
+.geo .flow2 { stroke: var(--side2); stroke-width: 2.2; }
+.geo .hatchline { stroke: var(--muted); stroke-width: 1; }
+.geo text { fill: var(--ink); font-size: 14px; font-family: inherit; }
+.geo text.s { font-size: 12.5px; }
+.geo text.b { font-weight: 700; font-size: 16px; }
+.geo text.mid { text-anchor: middle; }
+.geo text.muted-t { fill: var(--muted); }
+.geo text.t1 { fill: var(--side1); }
+.geo text.t2 { fill: var(--side2); }
+.geo .sub { font-size: .72em; }
+.geo .perim-key { fill: var(--ink); }
+/* vurgulama */
+.geo [data-part] { transition: opacity .15s, stroke-width .15s, filter .15s; }
+.geo.dim-others .fin, .geo.dim-others .prim, .geo.dim-others .ac, .geo.dim-others .perim, .geo.dim-others g[data-part], .geo.dim-others text[data-part] { opacity: .25; }
+.geo.dim-others [data-part].hl { opacity: 1; }
+.geo .fin.hl { filter: drop-shadow(0 0 4px var(--accent)); }
+.geo .prim.hl { stroke-width: 7; }
+.geo g.hl .dim { stroke: var(--accent); stroke-width: 2.4; }
+.geo g.hl text, .geo text.hl { fill: var(--accent); }
+.geo .ac.hl { fill-opacity: .5; }
+.geo .perim.hl { stroke: var(--accent); stroke-width: 2.6; }
+[data-hl]:hover, [data-hl]:focus-within { color: var(--ink); }
+@media (max-width: 760px) { .geo-fig { grid-template-columns: 1fr; } }

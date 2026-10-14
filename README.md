@@ -55,6 +55,7 @@ python -m http.server 8000
 | `css/style.css` | Arayüz (açık/koyu tema) ve PDF rapor stilleri |
 | `js/physics.js` | Fizik/hesap motoru: ifade ayrıştırıcı, özellikler (denklem/tablo), birimler, $\varepsilon$-NTU, kanatçık verimi, kütle ve Nu–Re–Pr modelli Wilson fit, $\Delta P$ (kütle / Fanning) fit, rating, belirsizlik yayılımı, bootstrap, D-optimal öneri, kararlı rejim tespiti, performans haritası, demo veri üretici |
 | `js/core.js` | Durum, ortak yardımcılar, akışkan/geometri hazırlığı, grafik teması, proje/taslak, tema |
+| `js/diagrams.js` | Geometri yönlendirme çizimleri (kanatçık/alan, akış kesiti/akış boyu) ve alan↔çizim vurgulama |
 | `js/library.js` | Kütüphane paneli (tablo içe aktarma, denklemler, katı malzemeler) |
 | `js/data.js` | Adım 1: dosya + eşleme, elle giriş, D-optimal öneri, zaman serisi, demo |
 | `js/analysis.js` | Adım 3: analiz, düz dille sonuç özeti, grafikler, bootstrap |
@@ -148,6 +149,8 @@ $$\eta_o = 1 - \frac{A_f}{A}(1 - \eta_f), \quad \eta_f = \frac{\tanh(m_f L_f)}{m
 | $t_f$ | Kanatçık kalınlığı | m (arayüzde mm) |
 | $k_m$ | Kanatçık malzemesi ısıl iletkenliği | W/(m·K) |
 | $R_w$ | Duvar (plaka) ısıl direnci, $t_w/(k_w A_w)$ | K/W |
+
+> **Uygulamada görsel kılavuz:** *2 · Eşanjör → ⚙ Gelişmiş ayarlar* bölümünde bir kesit çizimi bu büyüklüklerin neye karşılık geldiğini gösterir; bir alana tıklayınca veya üzerine gelince çizimdeki karşılığı (ör. $L_f$ oku, kanatçık yüzeyleri $A_f$, plaka yüzeyleri $A_p$) vurgulanır. Boyutsuz model seçildiğinde $A_c$, $D_h$ ve akış boyları $L_1$, $L_2$ için de benzer bir çizim görünür. Pratik kurallar: iki plakaya lehimli kanatçıkta $L_f \approx b/2$ ($b$: plaka aralığı); düz/ofset kanatçıklarda $A_f/A \approx 0.6$–$0.9$; $D_h = 4A_cL/A$.
 
 **Fit algoritması (2D mod):**
 

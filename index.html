@@ -230,21 +230,32 @@
       </div>
       <div class="re-box" id="reBox">
         <p class="muted small">Boyutsuz model için kesit bilgisi gerekir. <b>Yaklaşık değerler yeterlidir</b> — tahmin sonuçlarını etkilemezler, sadece katsayıların literatürle kıyaslanabilirliğini etkilerler.</p>
+        <figure class="geo-fig" data-kind="flow">
+          <div class="geo-svg"></div>
+          <figcaption>
+            <b>Değerler neye karşılık geliyor?</b> Bir alana tıklayın veya üzerine gelin; çizimde karşılığı vurgulanır.
+            <ul>
+              <li><b>Akış kesiti A<sub>c</sub></b>: o tarafın akışkanının geçtiği <i>açık</i> kesitlerin toplamı (en dar yerde; kanatçık ve plaka kalınlıkları hariç).</li>
+              <li><b>Hidrolik çap D<sub>h</sub></b>: 4 × kanal kesiti / ıslak çevre. Bilinen toplam alanla: D<sub>h</sub> = 4·A<sub>c</sub>·L / A.</li>
+              <li><b>Akış boyu L</b>: akışkanın çekirdek içinde katettiği yol. Çapraz akışta iki tarafın boyları farklıdır (L<sub>1</sub>, L<sub>2</sub>).</li>
+            </ul>
+          </figcaption>
+        </figure>
         <div class="grid two">
           <fieldset class="re-only">
             <legend>Taraf 1</legend>
             <div class="grid three-tight">
-              <label>Hidrolik çap D<sub>h</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side1.Dh" data-scale="1000"></label>
-              <label>Akış kesiti A<sub>c</sub> [cm²] <input type="number" step="any" min="0" data-bind="geom.side1.Ac" data-scale="10000"></label>
-              <label>Akış boyu L [mm] <span class="tip" tabindex="0" data-tip="Basınç düşümü için. Boş bırakılırsa ΔP basit modelle (Kp·ṁⁿ) hesaplanır.">?</span><input type="number" step="any" min="0" data-bind="geom.side1.Lflow" data-scale="1000"></label>
+              <label data-hl="Dh">Hidrolik çap D<sub>h</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side1.Dh" data-scale="1000"></label>
+              <label data-hl="Ac">Akış kesiti A<sub>c</sub> [cm²] <input type="number" step="any" min="0" data-bind="geom.side1.Ac" data-scale="10000"></label>
+              <label data-hl="L1">Akış boyu L<sub>1</sub> [mm] <span class="tip" tabindex="0" data-tip="Basınç düşümü için. Boş bırakılırsa ΔP basit modelle (Kp·ṁⁿ) hesaplanır.">?</span><input type="number" step="any" min="0" data-bind="geom.side1.Lflow" data-scale="1000"></label>
             </div>
           </fieldset>
           <fieldset class="re-only">
             <legend>Taraf 2</legend>
             <div class="grid three-tight">
-              <label>Hidrolik çap D<sub>h</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side2.Dh" data-scale="1000"></label>
-              <label>Akış kesiti A<sub>c</sub> [cm²] <input type="number" step="any" min="0" data-bind="geom.side2.Ac" data-scale="10000"></label>
-              <label>Akış boyu L [mm] <input type="number" step="any" min="0" data-bind="geom.side2.Lflow" data-scale="1000"></label>
+              <label data-hl="Dh">Hidrolik çap D<sub>h</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side2.Dh" data-scale="1000"></label>
+              <label data-hl="Ac">Akış kesiti A<sub>c</sub> [cm²] <input type="number" step="any" min="0" data-bind="geom.side2.Ac" data-scale="10000"></label>
+              <label data-hl="L2">Akış boyu L<sub>2</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side2.Lflow" data-scale="1000"></label>
             </div>
           </fieldset>
         </div>
@@ -263,26 +274,38 @@
 
       <h4>Isı transfer alanı ve kanatçıklar</h4>
       <p class="muted small">Gerçek alan ve kanatçık ölçülerini biliyorsanız kanatçık verimini açın. Kapalıyken kanatçık etkisi katsayıların içinde kalır; sonuçlar yine doğrudur.</p>
+      <figure class="geo-fig" data-kind="fins">
+        <div class="geo-svg"></div>
+        <figcaption>
+          <b>Değerler neye karşılık geliyor?</b> Bir alana tıklayın veya üzerine gelin; çizimde karşılığı vurgulanır.
+          <ul>
+            <li><b>Toplam alan A</b>: o taraftaki akışkanın değdiği <i>tüm</i> yüzey = plaka yüzeyi A<sub>p</sub> + kanatçık yüzeyi A<sub>f</sub> (bütün katmanlar toplamı).</li>
+            <li><b>Kanatçık alanı / toplam alan</b>: A<sub>f</sub>/A. Düz/ofset kanatçıklarda tipik 0.6–0.9.</li>
+            <li><b>Kanatçık boyu L<sub>f</sub></b>: kanatçık iki plakaya da lehimliyse plakalar arası mesafenin <b>yarısı</b> (b/2); tek uçtan bağlıysa b.</li>
+            <li><b>Kanatçık kalınlığı t<sub>f</sub></b>: kanatçık sacının kalınlığı (tipik 0.1–0.3 mm).</li>
+          </ul>
+        </figcaption>
+      </figure>
       <div class="grid two">
         <fieldset>
           <legend>Taraf 1</legend>
-          <label>Toplam ısı transfer alanı A₁ [m²] <span class="tip" tabindex="0" data-tip="Bilinmiyorsa 1 bırakın; tahminleri etkilemez (kanatçık verimi kapalıyken).">?</span><input type="number" step="any" min="0" data-bind="geom.side1.A"></label>
+          <label data-hl="A">Toplam ısı transfer alanı A₁ [m²] <span class="tip" tabindex="0" data-tip="Bilinmiyorsa 1 bırakın; tahminleri etkilemez (kanatçık verimi kapalıyken).">?</span><input type="number" step="any" min="0" data-bind="geom.side1.A"></label>
           <label class="chk"><input type="checkbox" data-bind="geom.side1.finsOn"> Kanatçık verimini hesapla</label>
           <div class="fins" data-fins="side1">
-            <label>Kanatçık alanı / toplam alan [-] <input type="number" step="any" min="0" max="1" data-bind="geom.side1.AfRatio"></label>
-            <label>Kanatçık boyu L<sub>f</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side1.Lf" data-scale="1000"></label>
-            <label>Kanatçık kalınlığı t<sub>f</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side1.tf" data-scale="1000"></label>
+            <label data-hl="Af">Kanatçık alanı / toplam alan A<sub>f</sub>/A [-] <input type="number" step="any" min="0" max="1" data-bind="geom.side1.AfRatio"></label>
+            <label data-hl="Lf">Kanatçık boyu L<sub>f</sub> [mm] <span class="tip" tabindex="0" data-tip="İki plakaya da bağlı kanatçıkta plakalar arası mesafenin yarısı (b/2).">?</span><input type="number" step="any" min="0" data-bind="geom.side1.Lf" data-scale="1000"></label>
+            <label data-hl="tf">Kanatçık kalınlığı t<sub>f</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side1.tf" data-scale="1000"></label>
             <label>Malzeme (k = <span data-kshow="side1"></span> W/m·K) <select data-bind="geom.side1.material" data-list="solids"></select></label>
           </div>
         </fieldset>
         <fieldset>
           <legend>Taraf 2</legend>
-          <label>Toplam ısı transfer alanı A₂ [m²] <input type="number" step="any" min="0" data-bind="geom.side2.A"></label>
+          <label data-hl="A">Toplam ısı transfer alanı A₂ [m²] <input type="number" step="any" min="0" data-bind="geom.side2.A"></label>
           <label class="chk"><input type="checkbox" data-bind="geom.side2.finsOn"> Kanatçık verimini hesapla</label>
           <div class="fins" data-fins="side2">
-            <label>Kanatçık alanı / toplam alan [-] <input type="number" step="any" min="0" max="1" data-bind="geom.side2.AfRatio"></label>
-            <label>Kanatçık boyu L<sub>f</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side2.Lf" data-scale="1000"></label>
-            <label>Kanatçık kalınlığı t<sub>f</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side2.tf" data-scale="1000"></label>
+            <label data-hl="Af">Kanatçık alanı / toplam alan A<sub>f</sub>/A [-] <input type="number" step="any" min="0" max="1" data-bind="geom.side2.AfRatio"></label>
+            <label data-hl="Lf">Kanatçık boyu L<sub>f</sub> [mm] <span class="tip" tabindex="0" data-tip="İki plakaya da bağlı kanatçıkta plakalar arası mesafenin yarısı (b/2).">?</span><input type="number" step="any" min="0" data-bind="geom.side2.Lf" data-scale="1000"></label>
+            <label data-hl="tf">Kanatçık kalınlığı t<sub>f</sub> [mm] <input type="number" step="any" min="0" data-bind="geom.side2.tf" data-scale="1000"></label>
             <label>Malzeme (k = <span data-kshow="side2"></span> W/m·K) <select data-bind="geom.side2.material" data-list="solids"></select></label>
           </div>
         </fieldset>
@@ -644,6 +667,7 @@
 
 <script src="js/physics.js"></script>
 <script src="js/core.js"></script>
+<script src="js/diagrams.js"></script>
 <script src="js/library.js"></script>
 <script src="js/data.js"></script>
 <script src="js/analysis.js"></script>
