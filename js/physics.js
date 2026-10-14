@@ -297,24 +297,93 @@
   }
 
   /* ------------------------------------------------------------------
-   * 4. ε-NTU (çapraz akış, her iki akışkan karışmamış)
+   * 4. ε-NTU bağıntıları ve akış düzenleri
+   *    arr = { type, passes, dir, mixedSide, passSide }
+   *      'cross_uu'    : tek geçiş çapraz akış, iki akışkan karışmamış (varsayılan)
+   *      'cross_mixed' : tek geçiş çapraz akış, mixedSide tarafı karışık
+   *      'multipass'   : N geçişli çapraz akış; her geçiş karışmamış-karışmamış çapraz
+   *                      birim (NTU/N), geçişler arasında karışma, genel yön 'counter'|'parallel'
+   *      'counter'     : saf ters akış        'parallel' : saf paralel akış
+   *    cminSide: Cmin hangi tarafta (1|2) — karışık taraf formülü için
    * ------------------------------------------------------------------ */
   function epsCrossflow(NTU, Cr) {
     if (!(NTU > 0)) return 0;
     if (Cr < 1e-6) return 1 - Math.exp(-NTU);
     return 1 - Math.exp((1 / Cr) * Math.pow(NTU, 0.22) * (Math.exp(-Cr * Math.pow(NTU, 0.78)) - 1));
   }
+  function epsCounter(NTU, Cr) {
+    if (!(NTU > 0)) return 0;
+    if (Math.abs(1 - Cr) < 1e-6) return NTU / (1 + NTU);
+    const e = Math.exp(-NTU * (1 - Cr));
+    return (1 - e) / (1 - Cr * e);
+  }
+  function epsParallel(NTU, Cr) {
+    if (!(NTU > 0)) return 0;
+    return (1 - Math.exp(-NTU * (1 + Cr))) / (1 + Cr);
+  }
+  // Seri bağlı N özdeş birimin genel ters/paralel birleşimi (birimler arası karışma)
+  function epsSeries(epsP, Cr, N, dir) {
+    if (N <= 1) return epsP;
+    if (dir === 'parallel') return (1 - Math.pow(1 - epsP * (1 + Cr), N)) / (1 + Cr);
+    if (Math.abs(1 - Cr) < 1e-6) return N * epsP / (1 + (N - 1) * epsP);
+    if (epsP >= 1 - 1e-12) return 1;
+    const q = Math.pow((1 - epsP * Cr) / (1 - epsP), N);
+    return (q - 1) / (q - Cr);
+  }
+  const ARR_DEFAULT = { type: 'cross_uu', passes: 2, dir: 'counter', mixedSide: 1, passSide: 1 };
+  function epsArr(NTU, Cr, arr, cminSide) {
+    const a = Object.assign({}, ARR_DEFAULT, arr || {});
+    if (!(NTU > 0)) return 0;
+    switch (a.type) {
+      case 'counter': return epsCounter(NTU, Cr);
+      case 'parallel': return epsParallel(NTU, Cr);
+      case 'cross_mixed': {
+        if (Cr < 1e-6) return 1 - Math.exp(-NTU);
+        const cminMixed = (+a.mixedSide || 1) === (cminSide || 1);
+        return cminMixed
+          ? 1 - Math.exp(-(1 / Cr) * (1 - Math.exp(-Cr * NTU)))       // Cmin karışık, Cmax karışmamış
+          : (1 / Cr) * (1 - Math.exp(-Cr * (1 - Math.exp(-NTU))));     // Cmax karışık, Cmin karışmamış
+      }
+      case 'multipass': {
+        const N = Math.max(1, Math.round(+a.passes || 1));
+        return epsSeries(epsCrossflow(NTU / N, Cr), Cr, N, a.dir);
+      }
+      default: return epsCrossflow(NTU, Cr);
+    }
+  }
   const NTU_MAX = 50;
-  function ntuFromEps(eps, Cr) {
+  // ε'u veren en küçük NTU. Bazı düzenlerde (çapraz-paralel) ε(NTU) monoton değildir;
+  // bu yüzden önce log-ölçekli tarama ile ilk aşıldığı aralık bulunur, sonra ikiye bölme.
+  function ntuFromEps(eps, Cr, arr, cminSide) {
     if (!(eps > 0)) return NaN;
-    if (eps >= epsCrossflow(NTU_MAX, Cr)) return NaN;
-    let lo = 0, hi = NTU_MAX;
-    for (let i = 0; i < 200; i++) {
+    const f = (n) => epsArr(n, Cr, arr, cminSide);
+    let lo = 0, hi = NaN, prev = 0;
+    const K = 240, nMin = 1e-4;
+    for (let i = 0; i <= K; i++) {
+      const n = nMin * Math.pow(NTU_MAX / nMin, i / K);
+      if (f(n) >= eps) { hi = n; lo = prev; break; }
+      prev = n;
+    }
+    if (!isFinite(hi)) return NaN;
+    for (let i = 0; i < 100; i++) {
       const mid = 0.5 * (lo + hi);
-      if (epsCrossflow(mid, Cr) < eps) lo = mid; else hi = mid;
-      if (hi - lo < 1e-12) break;
+      if (f(mid) < eps) lo = mid; else hi = mid;
+      if (hi - lo < 1e-12 * Math.max(1, hi)) break;
     }
     return 0.5 * (lo + hi);
+  }
+  const ARR_LABELS = {
+    cross_uu: 'Tek geçiş çapraz akış (iki taraf karışmamış)',
+    cross_mixed: 'Tek geçiş çapraz akış (bir taraf karışık)',
+    multipass: 'Çok geçişli çapraz akış',
+    counter: 'Ters akış',
+    parallel: 'Paralel akış'
+  };
+  function arrLabel(arr) {
+    const a = Object.assign({}, ARR_DEFAULT, arr || {});
+    if (a.type === 'multipass') return `${a.passes} geçişli çapraz-${a.dir === 'parallel' ? 'paralel' : 'ters'} akış (taraf ${a.passSide} geçişli, geçişler arası karışma)`;
+    if (a.type === 'cross_mixed') return `Tek geçiş çapraz akış (taraf ${a.mixedSide} karışık)`;
+    return ARR_LABELS[a.type] || ARR_LABELS.cross_uu;
   }
 
   /* ------------------------------------------------------------------
@@ -428,7 +497,7 @@
     r.Q1 = Q1; r.Q2 = Q2; r.Q = Q; r.Qmax = Qmax; r.eps_exp = eps;
     r.sign = sgn;
     r.hbErr = has(Q1) && has(Q2) ? Math.abs(Q1 - Q2) / ((Q1 + Q2) / 2) * 100 : NaN;
-    r.NTU = ntuFromEps(eps, Cr);
+    r.NTU = ntuFromEps(eps, Cr, opts.arr, C1 <= C2 ? 1 : 2);
     r.UA = r.NTU * Cmin;
     if (!(r.UA > 0)) { r.valid = false; r.reason = 'ε fiziksel sınırların dışında (ε ≥ ε_max veya ≤ 0)'; }
     return r;
@@ -712,7 +781,7 @@
       const C1 = m1 * cp1, C2 = m2 * cp2;
       const Cmin = Math.min(C1, C2), Cmax = Math.max(C1, C2), Cr = Cmin / Cmax;
       const NTU = um.UA / Cmin;
-      const eps = epsCrossflow(NTU, Cr);
+      const eps = epsArr(NTU, Cr, geom.arr, C1 <= C2 ? 1 : 2);
       const Q = eps * Cmin * Math.abs(T1in - T2in);
       const n1 = T1in - sgn * Q / C1, n2 = T2in + sgn * Q / C2;
       out = { eps, Q, NTU, Cr, Cmin, Cmax, C1, C2, cp1, cp2, T1out: n1, T2out: n2, T1m, T2m };
@@ -754,6 +823,7 @@
   function analyze(rawPts, fl1, fl2, geom, settings) {
     settings = Object.assign({ hbThreshold: 5, excludeHB: true, epsSource: 'temps', cvThreshold: 2,
       nMin: 0.3, nMax: 0.8, npMin: 1.5, npMax: 2.0, assumedN: 0.6, unc: null }, settings || {});
+    if (!settings.arr) settings.arr = geom.arr;
     const model = geom.model || 'mass';
     if (model === 'reynolds') {
       for (const s of ['side1', 'side2']) {
@@ -785,7 +855,7 @@
       const um = modelUA(fit, geom, p.b1, p.b2);
       p.UA_pred = um.UA;
       p.h1 = um.h1; p.h2 = um.h2; p.eta1 = um.eta1; p.eta2 = um.eta2; p.R1 = um.R1; p.R2 = um.R2;
-      p.eps_pred = epsCrossflow(um.UA / p.Cmin, p.Cr);
+      p.eps_pred = epsArr(um.UA / p.Cmin, p.Cr, settings.arr, p.C1 <= p.C2 ? 1 : 2);
       p.Q_pred = p.eps_pred * p.Qmax;
     });
     const dpO = { npMin: settings.npMin, npMax: settings.npMax };
@@ -1087,7 +1157,7 @@
 
   const HEX = {
     parseEquation, compileExpr, fluidModel, tableInterpolator, parsePropertyTable, fitTableToEquations, polyfit, UNITS, toKelvin, fromKelvin, toKgPerS, toPa,
-    epsCrossflow, ntuFromEps, finEfficiency, surfaceEfficiency, sideResistance, hFromResistance,
+    epsCrossflow, epsCounter, epsParallel, epsSeries, epsArr, arrLabel, ARR_DEFAULT, ntuFromEps, finEfficiency, surfaceEfficiency, sideResistance, hFromResistance,
     mean, stdev, cv, metrics, processPoint, fitWilson, modelUA, fitPressure, rate, analyze,
     sideBasis, hOf, detectMode, fitFanning, dpPredict, pointUncertainty, bootstrapOne, bootstrapSummary, percentile,
     smartRange, spaced, convexHull, inHull, computeMap, suggestPoints, detectSteady, mulberry32,

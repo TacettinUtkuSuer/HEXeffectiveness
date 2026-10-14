@@ -357,7 +357,8 @@ async function makePdf() {
         <tr><th>ΔP₁ / ΔP₂ uyumu</th><td>R² = ${fx(stt.dp1.R2, 4)} / ${fx(stt.dp2.R2, 4)}; MAPE = ${fx(stt.dp1.MAPE, 2)} % / ${fx(stt.dp2.MAPE, 2)} %</td></tr>
       </tbody></table>
       <h2>2. Model ve Yöntem</h2>
-      <div class="eq">ε = 1 − exp[ (1/C<sub>r</sub>)·NTU<sup>0.22</sup>·( exp(−C<sub>r</sub>·NTU<sup>0.78</sup>) − 1 ) ],  NTU = UA/C<sub>min</sub></div>
+      <p><b>Akış düzeni:</b> ${esc(H.arrLabel(S.settings.arr))}</p>
+      <div class="eq">ε = 1 − exp[ (1/C<sub>r</sub>)·NTU<sup>0.22</sup>·( exp(−C<sub>r</sub>·NTU<sup>0.78</sup>) − 1 ) ],  NTU = UA/C<sub>min</sub>${(S.settings.arr || {}).type === 'multipass' ? ` — her geçiş NTU/N ile; N = ${esc(S.settings.arr.passes)} geçişin genel ${S.settings.arr.dir === 'parallel' ? 'paralel' : 'ters'} akış birleşimi` : ''}</div>
       <div class="eq">1/UA = 1/(η<sub>o</sub>hA)₁ + R<sub>w</sub> + 1/(η<sub>o</sub>hA)₂,  ${R.model === 'reynolds' ? 'Nu<sub>i</sub> = h<sub>i</sub>D<sub>h,i</sub>/k<sub>i</sub> = C<sub>i</sub>·Re<sub>i</sub><sup>n<sub>i</sub></sup>·Pr<sub>i</sub><sup>1/3</sup>, Re = ṁD<sub>h</sub>/(A<sub>c</sub>μ)' : 'h<sub>i</sub> = C<sub>i</sub>·ṁ<sub>i</sub><sup>n<sub>i</sub></sup>'}</div>
       <div class="eq">η<sub>o</sub> = 1 − (A<sub>f</sub>/A)(1 − η<sub>f</sub>),  η<sub>f</sub> = tanh(m<sub>f</sub>L<sub>f</sub>)/(m<sub>f</sub>L<sub>f</sub>),  m<sub>f</sub> = √(2h/(k<sub>m</sub>t<sub>f</sub>))</div>
       <div class="eq">${R.model === 'reynolds' ? 'ΔP = f·(4L/D<sub>h</sub>)·G²/(2ρ),  f = K<sub>f</sub>·Re<sup>−b</sup>,  G = ṁ/A<sub>c</sub>' : 'ΔP = K<sub>p</sub>·ṁ<sup>n<sub>p</sub></sup>'}</div>

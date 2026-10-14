@@ -48,7 +48,7 @@ function defaultState() {
       Rw: 0
     },
     settings: { hbThreshold: 5, excludeHB: true, epsSource: 'temps', cvThreshold: 2, nMin: 0.3, nMax: 0.8, assumedN: 0.6, npMin: 1.5, npMax: 2.0,
-      thermalModel: 'mass', uncOn: true, uT: 0.2, uM: 1.0, uDP: 1.0, nBoot: 100 },
+      thermalModel: 'mass', arr: { type: 'cross_uu', passes: '2', passSide: '1', dir: 'counter', mixedSide: '1' }, uncOn: true, uT: 0.2, uM: 1.0, uDP: 1.0, nBoot: 100 },
     pmap: { m1min: '', m1max: '', m1n: 13, m2min: '', m2max: '', m2n: 13, spacing: 'auto', flowUnit1: 'kg/s', flowUnit2: 'kg/s',
       T1list: '', T2list: '', tempUnit: '°C', qty: 'eps', level: 0, dpUnit: 'Pa' },
     steady: { window: 60, minDur: 60, tolT: 0.2, tolRel: 1.0, dt: 1, trim: 10 },
@@ -140,6 +140,7 @@ function calcGeom() {
   }
   g.Rw = +g.Rw || 0;
   g.model = S.settings.thermalModel === 'reynolds' ? 'reynolds' : 'mass';
+  g.arr = Object.assign({}, S.settings.arr);
   if (g.model === 'reynolds') {
     for (const s of ['side1', 'side2']) {
       const nm = s === 'side1' ? 'Taraf 1' : 'Taraf 2';

@@ -444,3 +444,20 @@ details.menu > summary::-webkit-details-marker { display: none; }
 .geo .perim.hl { stroke: var(--accent); stroke-width: 2.6; }
 [data-hl]:hover, [data-hl]:focus-within { color: var(--ink); }
 @media (max-width: 760px) { .geo-fig { grid-template-columns: 1fr; } }
+
+/* Akış düzeni seçimi */
+.arr-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.choice.arr { flex-direction: column; align-items: flex-start; gap: 6px; position: relative; }
+.choice.arr input { position: absolute; top: 10px; right: 10px; margin: 0; }
+.choice.arr .ico { width: 56px; height: 56px; display: block; }
+.arr-ico { width: 56px; height: 56px; }
+.arr-opts { margin-top: 12px; padding: 12px 14px; border: 1px dashed var(--line); border-radius: 10px; }
+.geo-fig.single { grid-template-columns: 1fr; padding: 6px 10px; margin: 8px 0; }
+.geo .nofill { fill: none; }
+.geo .flow1, .geo .flow2 { fill: none; }
+.geo .thick { stroke-width: 5; }
+.geo .mixband { fill: var(--side2); fill-opacity: .12; }
+#arrCompare { margin-top: 10px; }
+@media (max-width: 1100px) { .arr-row { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .arr-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.geo.multi { max-width: 660px; margin: 0 auto; }
